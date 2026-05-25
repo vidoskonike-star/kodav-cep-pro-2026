@@ -1,0 +1,9 @@
+streamlit
+pandas
+openpyxl
+plotly
+reportlab
+PyPDF2
+PyYAML
+streamlit-authenticator
+Pillow

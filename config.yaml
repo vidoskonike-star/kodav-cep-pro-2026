@@ -1,0 +1,15 @@
+credentials:
+  usernames:
+    admin:
+      email: admin@gmail.com
+      name: Administrateur
+      password: "$2b$12$E2IAY7C9nUwHPzsJfOQW/uJvsFKNTJtpJDn.wS5doednq2y3SB6Du"
+
+cookie:
+  expiry_days: 30
+  key: "KODAV_CEP_SECRET_KEY_2026"
+  name: "kodav_cep_cookie"
+
+preauthorized:
+  emails:
+    - admin@gmail.com
