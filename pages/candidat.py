@@ -421,6 +421,93 @@ with open(FICHIER_CANDIDATS, "rb") as fichier:
     )
 
 # =====================================================
+# SUPPRESSION DES DONNÉES
+# =====================================================
+
+st.subheader("🗑️ Réinitialisation des données")
+
+colsup1, colsup2 = st.columns(2)
+
+with colsup1:
+
+    if st.button(
+        "❌ Supprimer la liste des candidats",
+        use_container_width=True
+    ):
+
+        os.remove(FICHIER_CANDIDATS)
+
+        df_vide = pd.DataFrame(columns=[
+
+            "N° Table",
+            "Nom",
+            "Prénoms",
+            "Sexe",
+            "Ecole de provenance"
+        ])
+
+        df_vide.to_excel(
+            FICHIER_CANDIDATS,
+            index=False
+        )
+
+        st.success(
+            "✅ Liste des candidats supprimée"
+        )
+
+        st.rerun()
+
+with colsup2:
+
+    if st.button(
+        "⚠️ Supprimer aussi les notes",
+        use_container_width=True
+    ):
+
+        if os.path.exists(FICHIER_NOTES):
+
+            os.remove(FICHIER_NOTES)
+
+        colonnes_notes = [
+
+            "N° Table",
+            "Nom",
+            "Prénoms",
+            "Sexe",
+            "Ecole de provenance",
+
+            "Lecture",
+            "Exp écrite",
+            "Dictée",
+            "Math",
+            "EST",
+            "ES",
+            "EA/Dessin/Couture",
+            "EA/Chant-Poésie",
+            "EPS",
+
+            "Total",
+            "Moy 6/9",
+            "Moyenne",
+            "Rang",
+            "OBS"
+        ]
+
+        df_notes_vide = pd.DataFrame(
+            columns=colonnes_notes
+        )
+
+        df_notes_vide.to_excel(
+            FICHIER_NOTES,
+            index=False
+        )
+
+        st.success(
+            "✅ Notes supprimées"
+        )
+
+        st.rerun()
+# =====================================================
 # RETOUR
 # =====================================================
 
