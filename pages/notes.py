@@ -685,6 +685,63 @@ with open(FICHIER_NOTES, "rb") as fichier:
     )
 
 # =====================================================
+# RÉINITIALISATION DES NOTES
+# =====================================================
+
+st.markdown("---")
+
+st.subheader("🗑️ Réinitialisation des notes")
+
+st.warning(
+    "Cette action supprimera toutes les notes enregistrées."
+)
+
+if st.button(
+    "❌ Réinitialiser toutes les notes",
+    use_container_width=True
+):
+
+    colonnes_notes = [
+
+        "N° Table",
+        "Nom",
+        "Prénoms",
+        "Sexe",
+        "Ecole de provenance",
+
+        "Lecture",
+        "Exp écrite",
+        "Dictée",
+        "Math",
+        "EST",
+        "ES",
+        "EA/Dessin/Couture",
+        "EA/Chant-Poésie",
+        "EPS",
+
+        "Total",
+        "Moy 6/9",
+        "Moyenne",
+        "Rang",
+        "OBS"
+    ]
+
+    df_vide = pd.DataFrame(
+        columns=colonnes_notes
+    )
+
+    df_vide.to_excel(
+        FICHIER_NOTES,
+        index=False
+    )
+
+    st.success(
+        "✅ Toutes les notes ont été supprimées avec succès"
+    )
+
+    st.rerun()
+    
+# =====================================================
 # RETOUR
 # =====================================================
 
