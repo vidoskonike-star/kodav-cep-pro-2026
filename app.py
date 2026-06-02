@@ -46,7 +46,7 @@ def get_base64(bin_file):
 
     return base64.b64encode(data).decode()
 
-bg = get_base64("assets/background.jpg")
+bg = get_base64("assets/background.png")
 
 # =====================================================
 # CALCUL STATISTIQUES AUTOMATIQUES
