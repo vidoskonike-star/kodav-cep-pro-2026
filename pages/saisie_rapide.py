@@ -2,13 +2,25 @@ import streamlit as st
 import pandas as pd
 import os
 
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle
+)
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus.flowables import HRFlowable
+
 # =====================================================
-# CONFIGURATION PAGE
+# CONFIGURATION
 # =====================================================
 
 st.set_page_config(
-    page_title="Saisie Rapide",
-    page_icon="⚡",
+    page_title="Relevé CEP",
+    page_icon="📄",
     layout="wide"
 )
 
@@ -17,101 +29,81 @@ st.set_page_config(
 # =====================================================
 
 if "authentication_status" not in st.session_state:
-
     st.error("Veuillez vous connecter")
     st.stop()
 
-if st.session_state["authentication_status"] is not True:
-
+if not st.session_state["authentication_status"]:
     st.error("Accès refusé")
     st.stop()
 
-# =====================================================
-# TITRE
-# =====================================================
-
-st.title("⚡ Saisie Rapide des Notes CEP")
-
-st.success(
-    f"Bienvenue {st.session_state['name']}"
-)
+st.title("📄 Relevé individuel CEP")
+st.success(f"Bienvenue {st.session_state['name']}")
 
 # =====================================================
-# DOSSIER DATA
+# FICHIER
 # =====================================================
 
-os.makedirs("data", exist_ok=True)
-
-# =====================================================
-# FICHIERS
-# =====================================================
-
-FICHIER_CANDIDATS = "data/candidats.xlsx"
 FICHIER_NOTES = "data/notes.xlsx"
 
-# =====================================================
-# VÉRIFICATION FICHIERS
-# =====================================================
-
-if not os.path.exists(FICHIER_CANDIDATS):
-
-    st.error("Aucun candidat enregistré")
+if not os.path.exists(FICHIER_NOTES):
+    st.error("Fichier notes introuvable")
     st.stop()
 
-# =====================================================
-# CRÉATION AUTOMATIQUE NOTES.XLSX
-# =====================================================
+df = pd.read_excel(FICHIER_NOTES)
 
-if not os.path.exists(FICHIER_NOTES):
+if df.empty:
+    st.warning("Aucune donnée disponible")
+    st.stop()
 
-    colonnes = [
-
-        "N° Table",
-        "Nom",
-        "Prénoms",
-        "Sexe",
-        "Ecole de provenance",
-
-        "Lecture",
-        "Exp écrite",
-        "Dictée",
-        "Math",
-        "EST",
-        "ES",
-        "EA/Dessin/Couture",
-        "EA/Chant-Poésie",
-        "EPS",
-
-        "Total",
-        "Moy 6/9",
-        "Moyenne",
-        "Rang",
-        "OBS"
-    ]
-
-    pd.DataFrame(columns=colonnes).to_excel(
-        FICHIER_NOTES,
-        index=False
-    )
+df = df.dropna(subset=["Nom", "Prénoms"])
 
 # =====================================================
-# CHARGEMENT EXCEL
+# NOM COMPLET
 # =====================================================
 
-df_candidats = pd.read_excel(
-    FICHIER_CANDIDATS
+df["Nom complet"] = (
+    df["Nom"].astype(str).str.strip()
+    + " "
+    + df["Prénoms"].astype(str).str.strip()
 )
 
-df_notes = pd.read_excel(
-    FICHIER_NOTES
-)
+candidat = st.selectbox("🎓 Choisir un candidat", df["Nom complet"].tolist())
+
+ligne = df[df["Nom complet"] == candidat].iloc[0]
 
 # =====================================================
-# MATIÈRES
+# MENTION
+# =====================================================
+
+moyenne = float(ligne["Moyenne"])
+
+if moyenne >= 16:
+    mention = "TRÈS BIEN"
+elif moyenne >= 14:
+    mention = "BIEN"
+elif moyenne >= 12:
+    mention = "ASSEZ BIEN"
+elif moyenne >= 10:
+    mention = "PASSABLE"
+else:
+    mention = "AJOURNÉ"
+
+# =====================================================
+# CARDS MODERNES
+# =====================================================
+
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric("N° Table", ligne["N° Table"])
+c2.metric("Rang", ligne["Rang"])
+c3.metric("Moyenne /20", f"{moyenne:.2f}")
+c4.metric("Mention", mention)
+
+# =====================================================
+# TABLE NOTES (AVEC /20)
 # =====================================================
 
 matieres = [
-
     "Lecture",
     "Exp écrite",
     "Dictée",
@@ -123,338 +115,106 @@ matieres = [
     "EPS"
 ]
 
-# =====================================================
-# CHOIX MATIÈRE
-# =====================================================
+notes_df = pd.DataFrame({
+    "Matière": matieres,
+    "Note /20": [float(ligne[m]) for m in matieres]
+})
 
-matiere = st.selectbox(
-    "📘 Choisir une matière",
-    matieres
-)
+st.subheader("📋 Notes du candidat (/20)")
 
-# =====================================================
-# TITRE MATIÈRE
-# =====================================================
-
-st.subheader(
-    f"✍️ Saisie rapide : {matiere}"
-)
+st.dataframe(notes_df, use_container_width=True, hide_index=True)
 
 # =====================================================
-# AJOUT AUTOMATIQUE CANDIDATS
+# RESULTATS
 # =====================================================
 
-for i, row in df_candidats.iterrows():
+st.subheader("📊 Résultats")
 
-    numero_table = row["N° Table"]
+st.metric("Total /180", ligne["Total"])
+st.metric("Moyenne /20", ligne["Moyenne"])
+st.metric("Observation", ligne["OBS"])
+st.metric("Mention", mention)
 
-    nom = str(row["Nom"]).strip()
-    prenoms = str(row["Prénoms"]).strip()
+# =====================================================
+# PDF MODERNE
+# =====================================================
 
-    existe = (
+if st.button("📄 Générer le relevé PDF", use_container_width=True):
 
-        (df_notes["N° Table"].astype(str) == str(numero_table))
-    ).any()
+    nom_pdf = f"releve_{ligne['N° Table']}.pdf"
 
-    if not existe:
+    doc = SimpleDocTemplate(nom_pdf, pagesize=A4)
 
-        nouvelle_ligne = {
+    styles = getSampleStyleSheet()
+    elements = []
 
-            "N° Table": numero_table,
-            "Nom": nom,
-            "Prénoms": prenoms,
-            "Sexe": row["Sexe"],
-            "Ecole de provenance": row["Ecole de provenance"],
+    # HEADER
+    header = Paragraph("""
+    <para align='center'>
+    <font size=18><b>KODAV CEP PRO</b></font><br/>
+    <font size=12>CENTRE D'EXAMEN CEP - RELEVÉ OFFICIEL</font><br/>
+    <hr/>
+    </para>
+    """, styles["Title"])
 
-            "Lecture": 0.0,
-            "Exp écrite": 0.0,
-            "Dictée": 0.0,
-            "Math": 0.0,
-            "EST": 0.0,
-            "ES": 0.0,
-            "EA/Dessin/Couture": 0.0,
-            "EA/Chant-Poésie": 0.0,
-            "EPS": 0.0,
+    elements.append(header)
+    elements.append(Spacer(1, 20))
 
-            "Total": 0.0,
-            "Moy 6/9": 0.0,
-            "Moyenne": 0.0,
-            "Rang": "",
-            "OBS": ""
-        }
+    # INFOS
+    infos = Paragraph(f"""
+    <b>Nom :</b> {ligne['Nom']}<br/>
+    <b>Prénoms :</b> {ligne['Prénoms']}<br/>
+    <b>N° Table :</b> {ligne['N° Table']}<br/>
+    <b>Sexe :</b> {ligne['Sexe']}<br/>
+    <b>Ecole :</b> {ligne['Ecole de provenance']}<br/>
+    """, styles["BodyText"])
 
-        df_notes = pd.concat(
-            [
-                df_notes,
-                pd.DataFrame([nouvelle_ligne])
-            ],
-            ignore_index=True
+    elements.append(infos)
+    elements.append(Spacer(1, 15))
+
+    # TABLE NOTES PDF
+    data = [["Matière", "Note /20"]]
+    for m in matieres:
+        data.append([m, str(ligne[m])])
+
+    table = Table(data, colWidths=[300, 120])
+
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.darkblue),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 1, colors.black),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 20))
+
+    # RESULTATS
+    result = Paragraph(f"""
+    <b>Total :</b> {ligne['Total']}<br/>
+    <b>Moyenne :</b> {ligne['Moyenne']}<br/>
+    <b>Rang :</b> {ligne['Rang']}<br/>
+    <b>Mention :</b> {mention}<br/>
+    <b>Observation :</b> {ligne['OBS']}<br/>
+    """, styles["BodyText"])
+
+    elements.append(result)
+
+    doc.build(elements)
+
+    st.success("PDF généré avec succès")
+
+    with open(nom_pdf, "rb") as f:
+        st.download_button(
+            "⬇️ Télécharger PDF",
+            f,
+            file_name=nom_pdf,
+            mime="application/pdf"
         )
-
-# =====================================================
-# CONVERSION NUMÉRO TABLE
-# =====================================================
-
-df_notes["N° Table"] = pd.to_numeric(
-    df_notes["N° Table"],
-    errors="coerce"
-)
-
-# =====================================================
-# TRI PAR NUMÉRO TABLE
-# =====================================================
-
-df_notes = df_notes.sort_values(
-    by="N° Table"
-)
-# =====================================================
-# CONVERSION NUMÉRIQUE
-# =====================================================
-
-for col in matieres:
-
-    df_notes[col] = pd.to_numeric(
-        df_notes[col],
-        errors="coerce"
-    ).fillna(0.0)
-
-# =====================================================
-# NOM COMPLET
-# =====================================================
-
-df_notes["Nom complet"] = (
-
-    df_notes["Nom"].astype(str)
-    + " "
-    + df_notes["Prénoms"].astype(str)
-)
-
-# =====================================================
-# TABLEAU DE SAISIE
-# =====================================================
-
-st.info(
-    "Utilisez TAB, ENTER ou les flèches du clavier pour vous déplacer rapidement."
-)
-
-df_saisie = df_notes[
-    ["N° Table", "Nom complet", matiere]
-].copy()
-
-# =====================================================
-# ÉDITEUR STYLE EXCEL
-# =====================================================
-
-edited_df = st.data_editor(
-
-    df_saisie,
-
-    use_container_width=True,
-
-    hide_index=True,
-
-    num_rows="fixed",
-
-    key="table_saisie",
-
-    column_config={
-
-        "N° Table": st.column_config.NumberColumn(
-            "N° Table",
-            disabled=True
-        ),
-
-        "Nom complet": st.column_config.TextColumn(
-            "Nom du candidat",
-            disabled=True
-        ),
-
-        matiere: st.column_config.NumberColumn(
-            matiere,
-            min_value=0.0,
-            max_value=20.0,
-            step=0.5,
-            format="%.1f",
-            required=True
-        )
-    }
-)
-
-# =====================================================
-# BOUTON ENREGISTREMENT
-# =====================================================
-
-if st.button(
-    "💾 Enregistrer les notes",
-    use_container_width=True
-):
-
-    # =================================================
-    # MISE À JOUR MATIÈRE
-    # =================================================
-
-    df_notes[matiere] = edited_df[matiere]
-
-    # =================================================
-    # TOTAL
-    # =================================================
-
-    df_notes["Total"] = (
-
-        df_notes["Lecture"]
-        + df_notes["Exp écrite"]
-        + df_notes["Dictée"]
-        + df_notes["Math"]
-        + df_notes["EST"]
-        + df_notes["ES"]
-        + df_notes["EA/Dessin/Couture"]
-        + df_notes["EA/Chant-Poésie"]
-        + df_notes["EPS"]
-
-    )
-
-    # =================================================
-    # MOYENNE
-    # =================================================
-
-    df_notes["Moyenne"] = round(
-        df_notes["Total"] / 9,
-        2
-    )
-
-    # =================================================
-    # MOY 6/9
-    # =================================================
-
-    df_notes["Moy 6/9"] = round(
-        df_notes["Total"] / 6,
-        2
-    )
-
-    # =================================================
-    # OBSERVATION
-    # =================================================
-
-    df_notes["OBS"] = df_notes[
-        "Moyenne"
-    ].apply(
-
-        lambda x:
-        "Admis"
-        if x >= 10
-        else "Ajourné"
-    )
-
-    # =================================================
-    # PAS DE RANG AUTOMATIQUE
-    # =================================================
-
-    df_notes["Rang"] = ""
-
-    # =================================================
-    # SUPPRESSION COLONNE TEMPORAIRE
-    # =================================================
-
-    if "Nom complet" in df_notes.columns:
-
-        df_notes = df_notes.drop(
-            columns=["Nom complet"]
-        )
-
-    # =================================================
-    # SAUVEGARDE
-    # =================================================
-
-    df_notes.to_excel(
-        FICHIER_NOTES,
-        index=False
-    )
-
-    st.success(
-        "✅ Notes enregistrées avec succès"
-    )
-
-    st.rerun()
-
-# =====================================================
-# APERÇU GÉNÉRAL
-# =====================================================
-
-st.subheader("📋 Résultats complets")
-
-st.dataframe(
-    df_notes,
-    use_container_width=True,
-    height=500
-)
-
-# =====================================================
-# IMPORTATION FICHIER EXCEL
-# =====================================================
-
-st.subheader("📥 Importer un fichier Excel de notes")
-
-fichier_importe = st.file_uploader(
-    "Choisir un fichier Excel",
-    type=["xlsx"]
-)
-
-if fichier_importe is not None:
-
-    try:
-
-        df_import = pd.read_excel(
-            fichier_importe
-        )
-
-        st.success(
-            "✅ Fichier chargé avec succès"
-        )
-
-        st.dataframe(
-            df_import.head(),
-            use_container_width=True
-        )
-
-        if st.button(
-            "📥 Importer les notes",
-            use_container_width=True
-        ):
-
-            df_import.to_excel(
-                FICHIER_NOTES,
-                index=False
-            )
-
-            st.success(
-                "✅ Fichier importé avec succès"
-            )
-
-            st.rerun()
-
-    except Exception as e:
-
-        st.error(
-            f"Erreur : {e}"
-        )
-
-# =====================================================
-# TÉLÉCHARGEMENT
-# =====================================================
-
-with open(FICHIER_NOTES, "rb") as fichier:
-
-    st.download_button(
-        label="⬇️ Télécharger notes.xlsx",
-        data=fichier,
-        file_name="notes.xlsx",
-        mime="application/vnd.ms-excel"
-    )
 
 # =====================================================
 # RETOUR
 # =====================================================
 
-if st.button("🏠 Retour à l'accueil"):
-
+if st.button("🏠 Retour"):
     st.switch_page("app.py")

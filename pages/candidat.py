@@ -17,14 +17,43 @@ st.set_page_config(
 # =====================================================
 
 if "authentication_status" not in st.session_state:
-
     st.error("Veuillez vous connecter")
     st.stop()
 
 if st.session_state["authentication_status"] is not True:
-
     st.error("Accès refusé")
     st.stop()
+
+# =====================================================
+# STYLE SAAS SIMPLE (HARMONISÉ APP)
+# =====================================================
+
+st.markdown("""
+<style>
+
+h1, h2, h3 {
+    color: white;
+}
+
+.block-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: white;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.card {
+    background: rgba(255,255,255,0.08);
+    padding: 18px;
+    border-radius: 18px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0px 0px 15px rgba(0,0,0,0.2);
+    color: white;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 # =====================================================
 # TITRE
@@ -32,9 +61,7 @@ if st.session_state["authentication_status"] is not True:
 
 st.title("🎓 Gestion des candidats CEP")
 
-st.success(
-    f"Bienvenue {st.session_state['name']}"
-)
+st.success(f"Bienvenue {st.session_state['name']}")
 
 # =====================================================
 # DOSSIER DATA
@@ -42,32 +69,20 @@ st.success(
 
 os.makedirs("data", exist_ok=True)
 
-# =====================================================
-# FICHIERS
-# =====================================================
-
 FICHIER_CANDIDATS = "data/candidats.xlsx"
 FICHIER_NOTES = "data/notes.xlsx"
 
 # =====================================================
-# CRÉATION FICHIER CANDIDATS
+# INIT FICHIER
 # =====================================================
 
 if not os.path.exists(FICHIER_CANDIDATS):
 
     df_init = pd.DataFrame(columns=[
-
-        "N° Table",
-        "Nom",
-        "Prénoms",
-        "Sexe",
-        "Ecole de provenance"
+        "N° Table", "Nom", "Prénoms", "Sexe", "Ecole de provenance"
     ])
 
-    df_init.to_excel(
-        FICHIER_CANDIDATS,
-        index=False
-    )
+    df_init.to_excel(FICHIER_CANDIDATS, index=False)
 
 # =====================================================
 # CHARGEMENT
@@ -75,46 +90,29 @@ if not os.path.exists(FICHIER_CANDIDATS):
 
 df = pd.read_excel(FICHIER_CANDIDATS)
 
-# =====================================================
-# CONVERSION N° TABLE
-# =====================================================
-
-df["N° Table"] = pd.to_numeric(
-    df["N° Table"],
-    errors="coerce"
-)
+df["N° Table"] = pd.to_numeric(df["N° Table"], errors="coerce")
 
 # =====================================================
 # FORMULAIRE
 # =====================================================
 
-st.subheader("➕ Ajouter un candidat")
+st.markdown("### ➕ Ajouter un candidat")
 
 with st.form("formulaire_candidat"):
 
-    numero_table = st.text_input("N° Table")
+    col1, col2 = st.columns(2)
 
-    nom = st.text_input("Nom")
+    with col1:
+        numero_table = st.text_input("N° Table")
+        nom = st.text_input("Nom")
 
-    prenoms = st.text_input("Prénoms")
+    with col2:
+        prenoms = st.text_input("Prénoms")
+        sexe = st.selectbox("Sexe", ["Masculin", "Féminin"])
 
-    sexe = st.selectbox(
+    ecole = st.text_input("École de provenance")
 
-        "Sexe",
-
-        [
-            "Masculin",
-            "Féminin"
-        ]
-    )
-
-    ecole = st.text_input(
-        "Ecole de provenance"
-    )
-
-    enregistrer = st.form_submit_button(
-        "💾 Enregistrer le candidat"
-    )
+    enregistrer = st.form_submit_button("💾 Enregistrer")
 
 # =====================================================
 # ENREGISTREMENT
@@ -122,257 +120,114 @@ with st.form("formulaire_candidat"):
 
 if enregistrer:
 
-    if (
-
-        numero_table == ""
-        or nom == ""
-        or prenoms == ""
-        or ecole == ""
-
-    ):
-
-        st.warning(
-            "Veuillez remplir tous les champs"
-        )
+    if numero_table == "" or nom == "" or prenoms == "" or ecole == "":
+        st.warning("Veuillez remplir tous les champs")
 
     else:
 
-        numero_table = pd.to_numeric(
-            numero_table,
-            errors="coerce"
-        )
+        numero_table = pd.to_numeric(numero_table, errors="coerce")
 
         if pd.isna(numero_table):
+            st.error("❌ Numéro de table invalide")
 
-            st.error(
-                "❌ Numéro de table invalide"
-            )
+        elif (df["N° Table"] == numero_table).any():
+            st.error("❌ Ce numéro de table existe déjà")
 
         else:
 
-            existe = (
+            nouveau = pd.DataFrame([{
+                "N° Table": numero_table,
+                "Nom": nom.upper(),
+                "Prénoms": prenoms.title(),
+                "Sexe": sexe,
+                "Ecole de provenance": ecole.upper()
+            }])
 
-                df["N° Table"]
-                == numero_table
+            df = pd.concat([df, nouveau], ignore_index=True)
+            df = df.sort_values(by="N° Table")
+            df.to_excel(FICHIER_CANDIDATS, index=False)
 
-            ).any()
+            # =================================================
+            # CREATION NOTES
+            # =================================================
 
-            if existe:
-
-                st.error(
-                    "❌ Ce numéro de table existe déjà"
-                )
-
+            if os.path.exists(FICHIER_NOTES):
+                df_notes = pd.read_excel(FICHIER_NOTES)
             else:
+                df_notes = pd.DataFrame()
 
-                nouveau = pd.DataFrame([{
+            nouvelle_note = pd.DataFrame([{
+                "N° Table": numero_table,
+                "Nom": nom.upper(),
+                "Prénoms": prenoms.title(),
+                "Sexe": sexe,
+                "Ecole de provenance": ecole.upper(),
+                "Lecture": 0.0,
+                "Exp écrite": 0.0,
+                "Dictée": 0.0,
+                "Math": 0.0,
+                "EST": 0.0,
+                "ES": 0.0,
+                "EA/Dessin/Couture": 0.0,
+                "EA/Chant-Poésie": 0.0,
+                "EPS": 0.0,
+                "Total": 0.0,
+                "Moy 6/9": 0.0,
+                "Moyenne": 0.0,
+                "Rang": "",
+                "OBS": ""
+            }])
 
-                    "N° Table": numero_table,
-                    "Nom": nom.upper(),
-                    "Prénoms": prenoms.title(),
-                    "Sexe": sexe,
-                    "Ecole de provenance": ecole.upper()
-                }])
+            df_notes = pd.concat([df_notes, nouvelle_note], ignore_index=True)
+            df_notes.to_excel(FICHIER_NOTES, index=False)
 
-                df = pd.concat(
-                    [df, nouveau],
-                    ignore_index=True
-                )
-
-                # =====================================
-                # TRI
-                # =====================================
-
-                df = df.sort_values(
-                    by="N° Table"
-                )
-
-                # =====================================
-                # SAUVEGARDE CANDIDATS
-                # =====================================
-
-                df.to_excel(
-                    FICHIER_CANDIDATS,
-                    index=False
-                )
-
-                # =====================================
-                # MISE À JOUR NOTES
-                # =====================================
-
-                if os.path.exists(FICHIER_NOTES):
-
-                    df_notes = pd.read_excel(
-                        FICHIER_NOTES
-                    )
-
-                else:
-
-                    df_notes = pd.DataFrame()
-
-                nouvelle_note = pd.DataFrame([{
-
-                    "N° Table": numero_table,
-                    "Nom": nom.upper(),
-                    "Prénoms": prenoms.title(),
-                    "Sexe": sexe,
-                    "Ecole de provenance": ecole.upper(),
-
-                    "Lecture": 0.0,
-                    "Exp écrite": 0.0,
-                    "Dictée": 0.0,
-                    "Math": 0.0,
-                    "EST": 0.0,
-                    "ES": 0.0,
-                    "EA/Dessin/Couture": 0.0,
-                    "EA/Chant-Poésie": 0.0,
-                    "EPS": 0.0,
-
-                    "Total": 0.0,
-                    "Moy 6/9": 0.0,
-                    "Moyenne": 0.0,
-                    "Rang": "",
-                    "OBS": ""
-                }])
-
-                df_notes = pd.concat(
-
-                    [
-                        df_notes,
-                        nouvelle_note
-                    ],
-
-                    ignore_index=True
-                )
-
-                df_notes["N° Table"] = pd.to_numeric(
-                    df_notes["N° Table"],
-                    errors="coerce"
-                )
-
-                df_notes = df_notes.sort_values(
-                    by="N° Table"
-                )
-
-                df_notes.to_excel(
-                    FICHIER_NOTES,
-                    index=False
-                )
-
-                st.success(
-                    "✅ Candidat enregistré avec succès"
-                )
-
-                st.rerun()
+            st.success("✅ Candidat enregistré avec succès")
+            st.rerun()
 
 # =====================================================
-# IMPORTATION EXCEL
+# IMPORT EXCEL
 # =====================================================
 
-st.subheader("📥 Importer une liste Excel")
+st.markdown("### 📥 Import Excel")
 
-fichier_import = st.file_uploader(
-
-    "Choisir un fichier Excel",
-
-    type=["xlsx"]
-)
+fichier_import = st.file_uploader("Importer fichier", type=["xlsx"])
 
 if fichier_import is not None:
 
-    try:
+    df_import = pd.read_excel(fichier_import)
+    st.dataframe(df_import.head(), use_container_width=True)
 
-        df_import = pd.read_excel(
-            fichier_import
-        )
+    if st.button("📥 Importer"):
 
-        st.dataframe(
-            df_import.head(),
-            use_container_width=True
-        )
+        df_import["N° Table"] = pd.to_numeric(df_import["N° Table"], errors="coerce")
+        df_import = df_import.sort_values(by="N° Table")
 
-        if st.button(
-            "📥 Importer les candidats",
-            use_container_width=True
-        ):
+        df_import.to_excel(FICHIER_CANDIDATS, index=False)
 
-            df_import["N° Table"] = pd.to_numeric(
-                df_import["N° Table"],
-                errors="coerce"
-            )
+        df_notes = df_import.copy()
 
-            df_import = df_import.sort_values(
-                by="N° Table"
-            )
+        for col in [
+            "Lecture","Exp écrite","Dictée","Math","EST","ES",
+            "EA/Dessin/Couture","EA/Chant-Poésie","EPS",
+            "Total","Moy 6/9","Moyenne"
+        ]:
+            df_notes[col] = 0.0
 
-            # =========================================
-            # SAUVEGARDE CANDIDATS
-            # =========================================
+        df_notes["Rang"] = ""
+        df_notes["OBS"] = ""
 
-            df_import.to_excel(
-                FICHIER_CANDIDATS,
-                index=False
-            )
+        df_notes.to_excel(FICHIER_NOTES, index=False)
 
-            # =========================================
-            # CRÉATION NOTES
-            # =========================================
-
-            df_notes = df_import.copy()
-
-            colonnes_notes = [
-
-                "Lecture",
-                "Exp écrite",
-                "Dictée",
-                "Math",
-                "EST",
-                "ES",
-                "EA/Dessin/Couture",
-                "EA/Chant-Poésie",
-                "EPS",
-                "Total",
-                "Moy 6/9",
-                "Moyenne"
-            ]
-
-            for col in colonnes_notes:
-
-                df_notes[col] = 0.0
-
-            df_notes["Rang"] = ""
-            df_notes["OBS"] = ""
-
-            df_notes.to_excel(
-                FICHIER_NOTES,
-                index=False
-            )
-
-            st.success(
-                "✅ Liste importée avec succès"
-            )
-
-            st.rerun()
-
-    except Exception as e:
-
-        st.error(e)
+        st.success("✅ Import réussi")
+        st.rerun()
 
 # =====================================================
 # AFFICHAGE
 # =====================================================
 
-st.subheader("📋 Liste des candidats")
+st.markdown("### 📋 Liste des candidats")
 
-df = df.sort_values(
-    by="N° Table"
-)
-
-st.dataframe(
-    df,
-    use_container_width=True,
-    height=500
-)
+st.dataframe(df.sort_values(by="N° Table"), use_container_width=True, height=450)
 
 # =====================================================
 # STATISTIQUES
@@ -380,140 +235,43 @@ st.dataframe(
 
 col1, col2, col3 = st.columns(3)
 
-with col1:
+col1.metric("👨 Masculins", len(df[df["Sexe"] == "Masculin"]))
+col2.metric("👩 Féminins", len(df[df["Sexe"] == "Féminin"]))
+col3.metric("🎓 Total", len(df))
 
-    st.metric(
-        "👨 Total Garçons",
-        len(df[df["Sexe"] == "Masculin"])
+# =====================================================
+# EXPORT
+# =====================================================
+
+with open(FICHIER_CANDIDATS, "rb") as f:
+    st.download_button(
+        "⬇️ Télécharger Excel",
+        f,
+        file_name="candidats.xlsx"
     )
+
+# =====================================================
+# RESET
+# =====================================================
+
+st.markdown("### 🗑️ Réinitialisation")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("❌ Supprimer candidats"):
+        os.remove(FICHIER_CANDIDATS)
+        st.rerun()
 
 with col2:
-
-    st.metric(
-        "👧 Total Filles",
-        len(df[df["Sexe"] == "Féminin"])
-    )
-
-with col3:
-
-    st.metric(
-        "🎓 Total Candidats",
-        len(df)
-    )
-
-# =====================================================
-# TÉLÉCHARGEMENT
-# =====================================================
-
-with open(FICHIER_CANDIDATS, "rb") as fichier:
-
-    st.download_button(
-
-        label="⬇️ Télécharger la liste Excel",
-
-        data=fichier,
-
-        file_name="candidats.xlsx",
-
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-        use_container_width=True
-    )
-
-# =====================================================
-# SUPPRESSION DES DONNÉES
-# =====================================================
-
-st.subheader("🗑️ Réinitialisation des données")
-
-colsup1, colsup2 = st.columns(2)
-
-with colsup1:
-
-    if st.button(
-        "❌ Supprimer la liste des candidats",
-        use_container_width=True
-    ):
-
-        os.remove(FICHIER_CANDIDATS)
-
-        df_vide = pd.DataFrame(columns=[
-
-            "N° Table",
-            "Nom",
-            "Prénoms",
-            "Sexe",
-            "Ecole de provenance"
-        ])
-
-        df_vide.to_excel(
-            FICHIER_CANDIDATS,
-            index=False
-        )
-
-        st.success(
-            "✅ Liste des candidats supprimée"
-        )
-
-        st.rerun()
-
-with colsup2:
-
-    if st.button(
-        "⚠️ Supprimer aussi les notes",
-        use_container_width=True
-    ):
-
+    if st.button("⚠️ Supprimer notes"):
         if os.path.exists(FICHIER_NOTES):
-
             os.remove(FICHIER_NOTES)
-
-        colonnes_notes = [
-
-            "N° Table",
-            "Nom",
-            "Prénoms",
-            "Sexe",
-            "Ecole de provenance",
-
-            "Lecture",
-            "Exp écrite",
-            "Dictée",
-            "Math",
-            "EST",
-            "ES",
-            "EA/Dessin/Couture",
-            "EA/Chant-Poésie",
-            "EPS",
-
-            "Total",
-            "Moy 6/9",
-            "Moyenne",
-            "Rang",
-            "OBS"
-        ]
-
-        df_notes_vide = pd.DataFrame(
-            columns=colonnes_notes
-        )
-
-        df_notes_vide.to_excel(
-            FICHIER_NOTES,
-            index=False
-        )
-
-        st.success(
-            "✅ Notes supprimées"
-        )
-
         st.rerun()
+
 # =====================================================
 # RETOUR
 # =====================================================
 
-if st.button(
-    "🏠 Retour à l'accueil",
-    use_container_width=True
-):
-
+if st.button("🏠 Accueil"):
     st.switch_page("app.py")

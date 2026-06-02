@@ -3,7 +3,7 @@ import pandas as pd
 import os
 
 # =====================================================
-# CONFIGURATION PAGE
+# CONFIGURATION
 # =====================================================
 
 st.set_page_config(
@@ -17,105 +17,38 @@ st.set_page_config(
 # =====================================================
 
 if "authentication_status" not in st.session_state:
-
     st.error("Veuillez vous connecter")
     st.stop()
 
-if st.session_state["authentication_status"] is not True:
-
+if not st.session_state["authentication_status"]:
     st.error("Accès refusé")
     st.stop()
 
-# =====================================================
-# TITRE
-# =====================================================
-
-st.title("🏆 Rangs & Synthèse CEP")
-
-st.success(
-    f"Bienvenue {st.session_state['name']}"
-)
+st.title("🏆 Classement & Synthèse CEP")
+st.success(f"Bienvenue {st.session_state['name']}")
 
 # =====================================================
-# FICHIER NOTES
+# FICHIER
 # =====================================================
 
 FICHIER_NOTES = "data/notes.xlsx"
 
-# =====================================================
-# VÉRIFICATION
-# =====================================================
-
 if not os.path.exists(FICHIER_NOTES):
-
-    st.error(
-        "Le fichier notes.xlsx est introuvable"
-    )
-
+    st.error("Fichier notes introuvable")
     st.stop()
 
-# =====================================================
-# CHARGEMENT
-# =====================================================
-
-df = pd.read_excel(
-    FICHIER_NOTES
-)
+df = pd.read_excel(FICHIER_NOTES)
 
 # =====================================================
-# NETTOYAGE DES DONNÉES
+# NETTOYAGE
 # =====================================================
 
-df = df.dropna(
-    subset=["Nom", "Prénoms"],
-    how="all"
-)
-
-# =====================================================
-# CONVERSION NUMÉRIQUE
-# =====================================================
-
-df["Moyenne"] = pd.to_numeric(
-    df["Moyenne"],
-    errors="coerce"
-).fillna(0)
-
-df["Total"] = pd.to_numeric(
-    df["Total"],
-    errors="coerce"
-).fillna(0)
-
-# =====================================================
-# CONVERSION N° TABLE
-# =====================================================
-
-df["N° Table"] = pd.to_numeric(
-    df["N° Table"],
-    errors="coerce"
-)
-
-# =====================================================
-# TRI
-# =====================================================
-
-df = df.sort_values(
-    by="N° Table"
-)
-# =====================================================
-# MATIÈRES
-# =====================================================
+df = df.dropna(subset=["Nom", "Prénoms"], how="all")
 
 matieres = [
-
-    "Lecture",
-    "Exp écrite",
-    "Dictée",
-    "Math",
-    "EST",
-    "ES",
-    "EA/Dessin/Couture",
-    "EA/Chant-Poésie",
-    "EPS"
+    "Lecture", "Exp écrite", "Dictée", "Math",
+    "EST", "ES", "EA/Dessin/Couture",
+    "EA/Chant-Poésie", "EPS"
 ]
 
 # =====================================================
@@ -123,181 +56,103 @@ matieres = [
 # =====================================================
 
 for col in matieres:
+    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    df[col] = pd.to_numeric(
-        df[col],
-        errors="coerce"
-    ).fillna(0)
+df["N° Table"] = pd.to_numeric(df["N° Table"], errors="coerce")
 
 # =====================================================
-# RECALCUL TOTAL
+# RECALCUL
 # =====================================================
 
-df["Total"] = (
+df["Total"] = df[matieres].sum(axis=1)
+df["Moyenne"] = round(df["Total"] / 9, 2)
+df["Moy 6/9"] = round(df["Total"] / 6, 2)
 
-    df["Lecture"]
-    + df["Exp écrite"]
-    + df["Dictée"]
-    + df["Math"]
-    + df["EST"]
-    + df["ES"]
-    + df["EA/Dessin/Couture"]
-    + df["EA/Chant-Poésie"]
-    + df["EPS"]
-)
-
-# =====================================================
-# RECALCUL MOYENNE
-# =====================================================
-
-df["Moyenne"] = round(
-    df["Total"] / 9,
-    2
-)
-
-# =====================================================
-# RECALCUL MOY 6/9
-# =====================================================
-
-df["Moy 6/9"] = round(
-    df["Total"] / 6,
-    2
+df["OBS"] = df["Moyenne"].apply(
+    lambda x: "Admis" if x >= 10 else "Ajourné"
 )
 
 # =====================================================
 # CLASSEMENT
 # =====================================================
 
-df = df.sort_values(
-    by="Moyenne",
-    ascending=False
-).reset_index(drop=True)
+df = df.sort_values(by="Moyenne", ascending=False).reset_index(drop=True)
+df["Rang"] = df.index + 1
 
 # =====================================================
-# RANGS
+# KPI
 # =====================================================
 
-df["Rang"] = range(
-    1,
-    len(df) + 1
-)
+total = len(df)
+admis = (df["OBS"] == "Admis").sum()
+ajournes = (df["OBS"] == "Ajourné").sum()
+
+taux_reussite = round((admis / total) * 100, 1) if total > 0 else 0
+moyenne_generale = round(df["Moyenne"].mean(), 2)
 
 # =====================================================
-# OBSERVATION
+# DASHBOARD KPI
 # =====================================================
 
-df["OBS"] = df["Moyenne"].apply(
+c1, c2, c3, c4 = st.columns(4)
 
-    lambda x:
-    "Admis"
-    if x >= 10
-    else "Ajourné"
-)
-
-# =====================================================
-# SAUVEGARDE
-# =====================================================
-
-df.to_excel(
-    FICHIER_NOTES,
-    index=False
-)
+c1.metric("👨‍🎓 Total candidats", total)
+c2.metric("🏆 Admis", admis)
+c3.metric("❌ Ajournés", ajournes)
+c4.metric("📈 Taux réussite", f"{taux_reussite}%")
 
 # =====================================================
-# STATISTIQUES
+# MOYENNE GÉNÉRALE
 # =====================================================
 
-nb_admis = len(
-    df[df["OBS"] == "Admis"]
-)
+st.metric("📊 Moyenne générale du centre", moyenne_generale)
 
-nb_ajournes = len(
-    df[df["OBS"] == "Ajourné"]
-)
-
-moyenne_generale = round(
-    df["Moyenne"].mean(),
-    2
-)
-
-# =====================================================
-# CARTES STATS
-# =====================================================
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-
-    st.metric(
-        "🎓 Admis",
-        nb_admis
-    )
-
-with col2:
-
-    st.metric(
-        "❌ Ajournés",
-        nb_ajournes
-    )
-
-with col3:
-
-    st.metric(
-        "📊 Moyenne Générale",
-        moyenne_generale
-    )
+st.divider()
 
 # =====================================================
 # TOP 10
 # =====================================================
 
-st.subheader("🥇 Top 10")
+st.subheader("🥇 Top 10 du centre")
 
 st.dataframe(
-
-    df.head(10)[
-
-        [
-            "Rang",
-            "N° Table",
-            "Nom",
-            "Prénoms",
-            "Moyenne",
-            "OBS"
-        ]
-    ],
-
+    df.head(10)[["Rang", "N° Table", "Nom", "Prénoms", "Moyenne", "OBS"]],
     use_container_width=True
 )
 
 # =====================================================
-# TABLEAU GÉNÉRAL
+# DISTRIBUTION DES MOYENNES (VISUEL)
 # =====================================================
 
-st.subheader("📋 Classement Général")
+st.subheader("📊 Répartition des performances")
 
-st.dataframe(
-    df,
-    use_container_width=True,
-    height=600
-)
+bins = [0, 5, 8, 10, 12, 14, 16, 20]
+labels = ["0-5", "5-8", "8-10", "10-12", "12-14", "14-16", "16-20"]
+
+df["Tranche"] = pd.cut(df["Moyenne"], bins=bins, labels=labels, include_lowest=True)
+
+distribution = df["Tranche"].value_counts().sort_index()
+
+st.bar_chart(distribution)
 
 # =====================================================
-# TÉLÉCHARGEMENT
+# TABLEAU COMPLET
 # =====================================================
 
-with open(FICHIER_NOTES, "rb") as file:
+st.subheader("📋 Classement complet")
 
+st.dataframe(df, use_container_width=True, height=600)
+
+# =====================================================
+# EXPORT
+# =====================================================
+
+with open(FICHIER_NOTES, "rb") as f:
     st.download_button(
-
-        label="📥 Télécharger le classement Excel",
-
-        data=file,
-
+        "📥 Télécharger classement Excel",
+        data=f,
         file_name="classement_CEP.xlsx",
-
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
         use_container_width=True
     )
 
@@ -305,9 +160,5 @@ with open(FICHIER_NOTES, "rb") as file:
 # RETOUR
 # =====================================================
 
-if st.button(
-    "🏠 Retour à l'accueil",
-    use_container_width=True
-):
-
+if st.button("🏠 Retour à l'accueil"):
     st.switch_page("app.py")

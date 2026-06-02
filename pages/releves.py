@@ -16,7 +16,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus.flowables import HRFlowable
 
 # =====================================================
-# CONFIGURATION PAGE
+# CONFIGURATION
 # =====================================================
 
 st.set_page_config(
@@ -30,12 +30,10 @@ st.set_page_config(
 # =====================================================
 
 if "authentication_status" not in st.session_state:
-
     st.error("Veuillez vous connecter")
     st.stop()
 
 if st.session_state["authentication_status"] is not True:
-
     st.error("Accès refusé")
     st.stop()
 
@@ -44,520 +42,217 @@ if st.session_state["authentication_status"] is not True:
 # =====================================================
 
 st.title("📄 Relevé individuel CEP")
-
-st.success(
-    f"Bienvenue {st.session_state['name']}"
-)
+st.success(f"Bienvenue {st.session_state['name']}")
 
 # =====================================================
-# FICHIER NOTES
+# FICHIER
 # =====================================================
 
 FICHIER_NOTES = "data/notes.xlsx"
 
-# =====================================================
-# VÉRIFICATION
-# =====================================================
-
 if not os.path.exists(FICHIER_NOTES):
-
-    st.error(
-        "Le fichier notes.xlsx est introuvable"
-    )
-
+    st.error("Fichier notes introuvable")
     st.stop()
 
-# =====================================================
-# CHARGEMENT
-# =====================================================
-
-df = pd.read_excel(
-    FICHIER_NOTES
-)
-
-# =====================================================
-# VÉRIFICATION DONNÉES
-# =====================================================
+df = pd.read_excel(FICHIER_NOTES)
 
 if df.empty:
-
-    st.warning("⚠️ Aucun candidat disponible")
+    st.warning("Aucune donnée disponible")
     st.stop()
 
 # =====================================================
-# SUPPRESSION LIGNES VIDES
+# NETTOYAGE
 # =====================================================
 
-df = df.dropna(
-    subset=["Nom", "Prénoms"],
-    how="all"
-)
-
-# =====================================================
-# NOM COMPLET
-# =====================================================
+df = df.dropna(subset=["Nom", "Prénoms"])
 
 df["Nom complet"] = (
-
     df["Nom"].astype(str).str.strip()
     + " "
     + df["Prénoms"].astype(str).str.strip()
 )
 
 # =====================================================
-# LISTE CANDIDATS
+# LISTE
 # =====================================================
 
-liste_candidats = df[
-    "Nom complet"
-].dropna().tolist()
+candidats = df["Nom complet"].tolist()
 
-# =====================================================
-# AUCUN CANDIDAT
-# =====================================================
-
-if len(liste_candidats) == 0:
-
-    st.warning(
-        "⚠️ Aucun candidat trouvé dans le fichier notes.xlsx"
-    )
-
+if not candidats:
+    st.warning("Aucun candidat")
     st.stop()
 
 # =====================================================
-# CHOIX CANDIDAT
+# CHOIX
 # =====================================================
 
-candidat = st.selectbox(
-    "🎓 Choisir un candidat",
-    liste_candidats
-)
+candidat = st.selectbox("🎓 Choisir un candidat", candidats)
+
+ligne = df[df["Nom complet"] == candidat].iloc[0]
 
 # =====================================================
-# RECHERCHE SÉCURISÉE
+# NORMALISATION NOTES /20
 # =====================================================
 
-filtre = df[
-    df["Nom complet"] == candidat
+matieres = [
+    "Lecture", "Exp écrite", "Dictée", "Math",
+    "EST", "ES", "EA/Dessin/Couture",
+    "EA/Chant-Poésie", "EPS"
 ]
 
-if filtre.empty:
+notes_df = pd.DataFrame({
+    "Matière": matieres,
+    "Note": [ligne[m] for m in matieres]
+})
 
-    st.error(
-        "❌ Candidat introuvable"
-    )
-
-    st.stop()
-
-ligne = filtre.iloc[0]
+# format affichage /20
+notes_affichage = notes_df.copy()
+notes_affichage["Note"] = notes_affichage["Note"].astype(float).round(1).astype(str) + "/20"
 
 # =====================================================
-# MENTION AUTOMATIQUE
+# INFO MENTION
 # =====================================================
 
-moyenne = float(
-    ligne["Moyenne"]
-)
+moyenne = float(ligne["Moyenne"])
 
 if moyenne >= 16:
-
     mention = "TRÈS BIEN"
-
 elif moyenne >= 14:
-
     mention = "BIEN"
-
 elif moyenne >= 12:
-
     mention = "ASSEZ BIEN"
-
 elif moyenne >= 10:
-
     mention = "PASSABLE"
-
 else:
-
     mention = "AJOURNÉ"
 
 # =====================================================
-# INFOS CANDIDAT
+# INFOS UI
 # =====================================================
 
 col1, col2, col3 = st.columns(3)
 
-with col1:
+col1.metric("N° Table", ligne["N° Table"])
+col2.metric("Rang", ligne["Rang"])
+col3.metric("Mention", mention)
 
-    st.info(
-        f"N° Table : {ligne['N° Table']}"
-    )
-
-with col2:
-
-    st.info(
-        f"Rang : {ligne['Rang']}"
-    )
-
-with col3:
-
-    st.info(
-        f"Mention : {mention}"
-    )
-
-# =====================================================
-# TABLEAU NOTES
-# =====================================================
-
-notes_df = pd.DataFrame({
-
-    "Matière": [
-
-        "Lecture",
-        "Exp écrite",
-        "Dictée",
-        "Math",
-        "EST",
-        "ES",
-        "EA/Dessin/Couture",
-        "EA/Chant-Poésie",
-        "EPS"
-    ],
-
-    "Note": [
-
-        ligne["Lecture"],
-        ligne["Exp écrite"],
-        ligne["Dictée"],
-        ligne["Math"],
-        ligne["EST"],
-        ligne["ES"],
-        ligne["EA/Dessin/Couture"],
-        ligne["EA/Chant-Poésie"],
-        ligne["EPS"]
-    ]
-})
-
-# =====================================================
-# AFFICHAGE NOTES
-# =====================================================
-
-st.subheader("📋 Notes du candidat")
-
-st.dataframe(
-    notes_df,
-    use_container_width=True,
-    hide_index=True
-)
-
-# =====================================================
-# RÉSULTATS
-# =====================================================
+st.markdown("### 📋 Notes du candidat")
+st.dataframe(notes_affichage, use_container_width=True, hide_index=True)
 
 col1, col2, col3, col4 = st.columns(4)
 
-with col1:
-
-    st.metric(
-        "Total",
-        ligne["Total"]
-    )
-
-with col2:
-
-    st.metric(
-        "Moyenne",
-        ligne["Moyenne"]
-    )
-
-with col3:
-
-    st.metric(
-        "Observation",
-        ligne["OBS"]
-    )
-
-with col4:
-
-    st.metric(
-        "Mention",
-        mention
-    )
+col1.metric("Total", ligne["Total"])
+col2.metric("Moyenne", f"{ligne['Moyenne']}/20")
+col3.metric("Observation", ligne["OBS"])
+col4.metric("Mention", mention)
 
 # =====================================================
-# GÉNÉRATION PDF
+# PDF GENERATION
 # =====================================================
 
-if st.button(
-    "📄 Générer le relevé PDF",
-    use_container_width=True
-):
+def generate_pdf(ligne):
 
-    nom_pdf = (
-        f"releve_{ligne['N° Table']}.pdf"
-    )
-
-    doc = SimpleDocTemplate(
-
-        nom_pdf,
-
-        pagesize=A4,
-
-        rightMargin=40,
-        leftMargin=40,
-        topMargin=40,
-        bottomMargin=30
-    )
+    file = f"releve_{ligne['N° Table']}.pdf"
+    doc = SimpleDocTemplate(file, pagesize=A4)
 
     styles = getSampleStyleSheet()
-
     elements = []
 
-    # =================================================
-    # EN-TÊTE
-    # =================================================
+    # ================= HEADER =================
+    header = Paragraph("""
+    <para align='center'>
+    <b style='font-size:18px;'>RÉPUBLIQUE / CENTRE D'EXAMEN CEP</b><br/>
+    <b style='font-size:16px;'>KODAV CEP PRO</b><br/>
+    <b style='font-size:14px;'>RELEVÉ OFFICIEL DE NOTES</b><br/>
+    SESSION 2026
+    </para>
+    """, styles["Title"])
 
-    titre = Paragraph(
+    elements.append(header)
+    elements.append(Spacer(1, 20))
+    elements.append(HRFlowable(width="100%"))
+    elements.append(Spacer(1, 15))
 
-        """
-        <para align='center'>
-        <font size=18 color='darkgreen'>
-        <b>CENTRE D'EXAMEN BLANC CEP</b>
-        </font>
-        <br/><br/>
-        <font size=16>
-        <b>KODAV CEP PRO</b>
-        </font>
-        <br/><br/>
-        <font size=14>
-        <b>RELEVÉ DE NOTES CEP</b>
-        </font>
-        <br/><br/>
-        SESSION 2026
-        </para>
-        """,
-
-        styles['Title']
-    )
-
-    elements.append(titre)
-
-    elements.append(
-        Spacer(1, 20)
-    )
-
-    elements.append(
-        HRFlowable(width="100%")
-    )
-
-    elements.append(
-        Spacer(1, 15)
-    )
-
-    # =================================================
-    # INFORMATIONS
-    # =================================================
-
-    infos = Paragraph(
-
-        f"""
-        <font size=12>
-
-        <b>Nom :</b> {ligne['Nom']}<br/><br/>
-
-        <b>Prénoms :</b> {ligne['Prénoms']}<br/><br/>
-
-        <b>N° Table :</b> {ligne['N° Table']}<br/><br/>
-
-        <b>Sexe :</b> {ligne['Sexe']}<br/><br/>
-
-        <b>Ecole :</b> {ligne['Ecole de provenance']}
-
-        </font>
-        """,
-
-        styles['BodyText']
-    )
+    # ================= INFOS =================
+    infos = Paragraph(f"""
+    <font size=12>
+    <b>Nom :</b> {ligne['Nom']}<br/>
+    <b>Prénoms :</b> {ligne['Prénoms']}<br/>
+    <b>N° Table :</b> {ligne['N° Table']}<br/>
+    <b>Sexe :</b> {ligne['Sexe']}<br/>
+    <b>École :</b> {ligne['Ecole de provenance']}
+    </font>
+    """, styles["BodyText"])
 
     elements.append(infos)
+    elements.append(Spacer(1, 15))
 
-    elements.append(
-        Spacer(1, 20)
-    )
+    # ================= TABLE =================
+    table_data = [["Matière", "Note /20"]]
 
-    # =================================================
-    # TABLEAU NOTES PDF
-    # =================================================
+    for _, row in notes_df.iterrows():
+        table_data.append([row["Matière"], f"{row['Note']}/20"])
 
-    data = [
-
-        ["Matière", "Note"]
-    ]
-
-    for i, row in notes_df.iterrows():
-
-        data.append([
-
-            row["Matière"],
-            str(row["Note"])
-        ])
-
-    table = Table(
-
-        data,
-
-        colWidths=[300, 120]
-    )
+    table = Table(table_data, colWidths=[300, 120])
 
     table.setStyle(TableStyle([
-
-        (
-            'BACKGROUND',
-            (0, 0),
-            (-1, 0),
-            colors.darkgreen
-        ),
-
-        (
-            'TEXTCOLOR',
-            (0, 0),
-            (-1, 0),
-            colors.white
-        ),
-
-        (
-            'FONTNAME',
-            (0, 0),
-            (-1, 0),
-            'Helvetica-Bold'
-        ),
-
-        (
-            'FONTSIZE',
-            (0, 0),
-            (-1, -1),
-            11
-        ),
-
-        (
-            'GRID',
-            (0, 0),
-            (-1, -1),
-            1,
-            colors.black
-        ),
-
-        (
-            'ALIGN',
-            (0, 0),
-            (-1, -1),
-            'CENTER'
-        ),
-
-        (
-            'BOTTOMPADDING',
-            (0, 0),
-            (-1, 0),
-            12
-        )
+        ("BACKGROUND", (0, 0), (-1, 0), colors.darkgreen),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 1, colors.black),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 11),
     ]))
 
     elements.append(table)
+    elements.append(Spacer(1, 20))
 
-    elements.append(
-        Spacer(1, 25)
-    )
-
-    # =================================================
-    # RÉSULTATS FINAUX
-    # =================================================
-
-    resultats = Paragraph(
-
-        f"""
-        <font size=13>
-
-        <b>Total :</b> {ligne['Total']}<br/><br/>
-
-        <b>Moyenne :</b> {ligne['Moyenne']}<br/><br/>
-
-        <b>Rang :</b> {ligne['Rang']}<br/><br/>
-
-        <b>Mention :</b> {mention}<br/><br/>
-
-        <b>Observation :</b> {ligne['OBS']}
-
-        </font>
-        """,
-
-        styles['BodyText']
-    )
+    # ================= RESULTATS =================
+    resultats = Paragraph(f"""
+    <font size=12>
+    <b>Total :</b> {ligne['Total']}<br/>
+    <b>Moyenne :</b> {ligne['Moyenne']}/20<br/>
+    <b>Rang :</b> {ligne['Rang']}<br/>
+    <b>Mention :</b> {mention}<br/>
+    <b>Observation :</b> {ligne['OBS']}
+    </font>
+    """, styles["BodyText"])
 
     elements.append(resultats)
+    elements.append(Spacer(1, 40))
 
-    elements.append(
-        Spacer(1, 40)
-    )
-
-    # =================================================
-    # SIGNATURE
-    # =================================================
-
-    signature = Paragraph(
-
-        """
-        <para align='right'>
-
-        <font size=12>
-
-        Le Chef Centre<br/><br/><br/>
-
-        _______________________
-
-        </font>
-
-        </para>
-        """,
-
-        styles['BodyText']
-    )
+    # ================= SIGNATURE =================
+    signature = Paragraph("""
+    <para align='right'>
+    Le Chef Centre<br/><br/>
+    _______________________
+    </para>
+    """, styles["BodyText"])
 
     elements.append(signature)
 
-    # =================================================
-    # CRÉATION PDF
-    # =================================================
-
     doc.build(elements)
+    return file
 
-    st.success(
-        "✅ Relevé PDF généré avec succès"
-    )
+# =====================================================
+# GENERATION PDF
+# =====================================================
 
-    # =================================================
-    # TÉLÉCHARGEMENT
-    # =================================================
+if st.button("📄 Générer le relevé PDF", use_container_width=True):
 
-    with open(nom_pdf, "rb") as pdf:
+    pdf = generate_pdf(ligne)
 
+    with open(pdf, "rb") as f:
         st.download_button(
-
-            label="⬇️ Télécharger le relevé PDF",
-
-            data=pdf,
-
-            file_name=nom_pdf,
-
-            mime="application/pdf",
-
-            use_container_width=True
+            "⬇️ Télécharger PDF",
+            f,
+            file_name=pdf,
+            mime="application/pdf"
         )
 
 # =====================================================
 # RETOUR
 # =====================================================
 
-if st.button(
-    "🏠 Retour à l'accueil",
-    use_container_width=True
-):
-
+if st.button("🏠 Accueil", use_container_width=True):
     st.switch_page("app.py")
