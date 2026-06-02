@@ -9,7 +9,6 @@ import os
 # =====================================================
 # CONFIGURATION PAGE
 # =====================================================
-
 st.set_page_config(
     page_title="KODAV CEP PRO",
     page_icon="🎓",
@@ -18,15 +17,42 @@ st.set_page_config(
 )
 
 # =====================================================
-# CHARGEMENT YAML
+# FONCTIONS UTILITAIRES
 # =====================================================
+def set_background(image_path):
+    """Applique un fond d’écran institutionnel"""
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode()
+        st.markdown(f"""
+        <style>
+        .stApp {{
+            background: linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
+                        url("data:image/png;base64,{encoded}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        </style>
+        """, unsafe_allow_html=True)
 
+def load_excel(file_path):
+    """Charge le fichier Excel et calcule les statistiques"""
+    stats = {"total": 0, "notes": 0, "admissibles": 0, "releves": 0}
+    if os.path.exists(file_path):
+        df = pd.read_excel(file_path)
+        stats["total"] = len(df)
+        if "Moyenne" in df.columns and stats["total"] > 0:
+            stats["notes"] = round((df["Moyenne"].fillna(0).gt(0).sum() / stats["total"]) * 100)
+            stats["admissibles"] = len(df[df["Moyenne"] >= 10])
+        stats["releves"] = stats["total"]
+    return stats
+
+# =====================================================
+# CHARGEMENT CONFIGURATION
+# =====================================================
 with open("config.yaml") as file:
     config = yaml.load(file, Loader=SafeLoader)
-
-# =====================================================
-# AUTHENTIFICATION
-# =====================================================
 
 authenticator = stauth.Authenticate(
     config["credentials"],
@@ -36,155 +62,16 @@ authenticator = stauth.Authenticate(
 )
 
 # =====================================================
-# BACKGROUND IMAGE (SAFE VERSION)
+# STYLE GLOBAL
 # =====================================================
+with open("assets/style.css") as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-def get_base64(bin_file):
-    if not os.path.exists(bin_file):
-        return None
-    with open(bin_file, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-bg = get_base64("assets/background.png")
-
-background_css = ""
-
-if bg:
-    background_css = f"""
-    url("data:image/png;base64,{bg}")
-    """
+set_background("assets/background.png")
 
 # =====================================================
-# STATISTIQUES
+# AUTHENTIFICATION
 # =====================================================
-
-fichier_excel = "data/notes.xlsx"
-
-total_candidats = 0
-notes_saisies = 0
-admissibles = 0
-releves = 0
-
-try:
-    if os.path.exists(fichier_excel):
-        df = pd.read_excel(fichier_excel)
-
-        total_candidats = len(df)
-
-        if "Moyenne" in df.columns and total_candidats > 0:
-            notes_saisies = round(
-                (df["Moyenne"].fillna(0).gt(0).sum() / total_candidats) * 100
-            )
-
-            admissibles = len(df[df["Moyenne"] >= 10])
-
-        releves = total_candidats
-except:
-    pass
-
-# =====================================================
-# DESIGN SaaS PREMIUM CSS
-# =====================================================
-
-st.markdown(f"""
-<style>
-
-/* ================================================= */
-/* BACKGROUND */
-/* ================================================= */
-
-.stApp {{
-    background-image:
-    linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
-    {background_css};
-
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-}}
-
-/* ================================================= */
-/* TITRES */
-/* ================================================= */
-
-.main-title {{
-    text-align:center;
-    font-size:60px;
-    font-weight:900;
-    color:white;
-    text-shadow:0px 0px 20px rgba(0,0,0,0.6);
-    margin-top:10px;
-}}
-
-.sub-title {{
-    text-align:center;
-    font-size:20px;
-    color:#e0e0e0;
-    margin-bottom:30px;
-}}
-
-/* ================================================= */
-/* SIDEBAR */
-/* ================================================= */
-
-section[data-testid="stSidebar"] {{
-    background: linear-gradient(180deg, rgba(0,0,0,0.7), rgba(20,20,20,0.9));
-}}
-
-section[data-testid="stSidebar"] * {{
-    color:white !important;
-}}
-
-/* ================================================= */
-/* METRICS (CARDS) */
-/* ================================================= */
-
-.metric-card {{
-    background: rgba(255,255,255,0.08);
-    padding:20px;
-    border-radius:20px;
-    text-align:center;
-    backdrop-filter: blur(10px);
-    box-shadow:0px 0px 20px rgba(0,0,0,0.2);
-}}
-
-.metric-title {{
-    color:white;
-    font-size:16px;
-}}
-
-.metric-value {{
-    color:gold;
-    font-size:32px;
-    font-weight:800;
-}}
-
-/* ================================================= */
-/* BUTTONS */
-/* ================================================= */
-
-div.stButton > button {{
-    background: linear-gradient(90deg, #0072ff, #00c6ff);
-    color:white;
-    border:none;
-    padding:12px;
-    border-radius:12px;
-    font-weight:700;
-    transition:0.3s;
-}}
-
-div.stButton > button:hover {{
-    transform:scale(1.03);
-    box-shadow:0px 0px 15px rgba(0,114,255,0.6);
-}}
-
-</style>
-""", unsafe_allow_html=True)
-
-# =====================================================
-# LOGIN
-# =====================================================
-
 try:
     authenticator.login()
 except Exception as e:
@@ -193,95 +80,55 @@ except Exception as e:
 # =====================================================
 # PAGE CONNECTÉE
 # =====================================================
-
 if st.session_state["authentication_status"]:
-
     authenticator.logout("Déconnexion", "sidebar")
-
     st.sidebar.success(f"Bienvenue {st.session_state['name']}")
     st.sidebar.info("KODAV CEP PRO 2026")
-
-    # =================================================
-    # HEADER
-    # =================================================
 
     st.markdown("""
     <div class="main-title">🎓 KODAV CEP PRO</div>
     <div class="sub-title">Plateforme professionnelle de gestion des centres d’examen CEP</div>
     """, unsafe_allow_html=True)
 
-    # =================================================
-    # DASHBOARD CARDS
-    # =================================================
+    stats = load_excel("data/notes.xlsx")
 
     col1, col2, col3, col4 = st.columns(4)
+    cards = [
+        ("👨🏽‍🎓 Candidats", stats["total"]),
+        ("📝 Notes saisies", f"{stats['notes']}%"),
+        ("🏆 Admissibles", stats["admissibles"]),
+        ("📄 Relevés", stats["releves"])
+    ]
 
-    with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">👨🏽‍🎓 Candidats</div>
-            <div class="metric-value">{total_candidats}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    for col, (title, value) in zip([col1, col2, col3, col4], cards):
+        with col:
+            st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title">{title}</div>
+                <div class="metric-value">{value}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">📝 Notes saisies</div>
-            <div class="metric-value">{notes_saisies}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">🏆 Admissibles</div>
-            <div class="metric-value">{admissibles}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-title">📄 Relevés</div>
-            <div class="metric-value">{releves}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # =================================================
-    # MODULES
-    # =================================================
+    st.progress(stats["notes"] / 100)
 
     st.markdown("## 🚀 Modules disponibles")
-
     col1, col2, col3 = st.columns(3)
+    modules = [
+        ("👨🏽‍🎓 Candidats", "pages/candidat.py"),
+        ("📝 Notes", "pages/notes.py"),
+        ("⚡ Saisie Rapide", "pages/saisie_rapide.py"),
+        ("🏆 Synthèse CEP", "pages/synthese.py"),
+        ("📄 Relevés CEP", "pages/releves.py")
+    ]
 
-    with col1:
-        if st.button("👨🏽‍🎓 Candidats", use_container_width=True):
-            st.switch_page("pages/candidat.py")
-
-    with col2:
-        if st.button("📝 Notes", use_container_width=True):
-            st.switch_page("pages/notes.py")
-
-    with col3:
-        if st.button("⚡ Saisie Rapide", use_container_width=True):
-            st.switch_page("pages/saisie_rapide.py")
-
-    col4, col5 = st.columns(2)
-
-    with col4:
-        if st.button("🏆 Synthèse CEP", use_container_width=True):
-            st.switch_page("pages/synthese.py")
-
-    with col5:
-        if st.button("📄 Relevés CEP", use_container_width=True):
-            st.switch_page("pages/releves.py")
+    for label, page in modules:
+        if st.button(label, use_container_width=True):
+            st.switch_page(page)
 
     st.success("✅ Plateforme opérationnelle avec succès")
 
 elif st.session_state["authentication_status"] is False:
     st.error("❌ Nom d'utilisateur ou mot de passe incorrect")
 
-elif st.session_state["authentication_status"] is None:
+else:
     st.warning("🔐 Veuillez vous connecter")
