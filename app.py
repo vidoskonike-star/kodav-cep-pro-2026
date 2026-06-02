@@ -115,23 +115,23 @@ html, body, [class*="css"] {{
 /* FOND GENERAL */
 /* ================================================= */
 
-.stApp {
+.stApp {{
 
     background-image:
     linear-gradient(
-        rgba(255,255,255,0.20),
-        rgba(255,255,255,0.20)
+        rgba(255,255,255,0.10),
+        rgba(255,255,255,0.10)
     ),
     url("data:image/jpg;base64,{bg}");
 
     background-size: cover;
 
-    background-position: center center;
+    background-position: center;
 
     background-repeat: no-repeat;
 
     background-attachment: fixed;
-}
+}}
 
 /* ================================================= */
 /* FLECHE SIDEBAR */
