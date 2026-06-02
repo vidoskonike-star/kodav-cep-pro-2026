@@ -11,7 +11,7 @@ import os
 # =====================================================
 
 st.set_page_config(
-    page_title="KODAV CEP",
+    page_title="KODAV CEP PRO",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -36,20 +36,26 @@ authenticator = stauth.Authenticate(
 )
 
 # =====================================================
-# IMAGE FOND PERSONNALISÉE
+# BACKGROUND IMAGE (SAFE VERSION)
 # =====================================================
 
 def get_base64(bin_file):
-
+    if not os.path.exists(bin_file):
+        return None
     with open(bin_file, "rb") as f:
-        data = f.read()
-
-    return base64.b64encode(data).decode()
+        return base64.b64encode(f.read()).decode()
 
 bg = get_base64("assets/background.png")
 
+background_css = ""
+
+if bg:
+    background_css = f"""
+    url("data:image/png;base64,{bg}")
+    """
+
 # =====================================================
-# CALCUL STATISTIQUES AUTOMATIQUES
+# STATISTIQUES
 # =====================================================
 
 fichier_excel = "data/notes.xlsx"
@@ -60,175 +66,41 @@ admissibles = 0
 releves = 0
 
 try:
-
     if os.path.exists(fichier_excel):
-
         df = pd.read_excel(fichier_excel)
 
         total_candidats = len(df)
 
         if "Moyenne" in df.columns and total_candidats > 0:
-
             notes_saisies = round(
-                (
-                    df["Moyenne"]
-                    .fillna(0)
-                    .gt(0)
-                    .sum()
-                    / total_candidats
-                ) * 100
+                (df["Moyenne"].fillna(0).gt(0).sum() / total_candidats) * 100
             )
 
-            admissibles = len(
-                df[df["Moyenne"] >= 10]
-            )
+            admissibles = len(df[df["Moyenne"] >= 10])
 
         releves = total_candidats
-
 except:
     pass
 
 # =====================================================
-# CSS ULTRA PREMIUM
+# DESIGN SaaS PREMIUM CSS
 # =====================================================
 
-page_style = f"""
+st.markdown(f"""
 <style>
 
-#MainMenu {{
-    visibility: hidden;
-}}
-
-footer {{
-    visibility: hidden;
-}}
-
-header {{
-    visibility: visible;
-}}
-
-html, body, [class*="css"] {{
-    font-family: 'Segoe UI', sans-serif;
-}}
-
 /* ================================================= */
-/* FOND GENERAL */
+/* BACKGROUND */
 /* ================================================= */
 
 .stApp {{
-
     background-image:
-    linear-gradient(
-        rgba(255,255,255,0.10),
-        rgba(255,255,255,0.10)
-    ),
-    url("data:image/jpg;base64,{bg}");
+    linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
+    {background_css};
 
     background-size: cover;
-
     background-position: center;
-
-    background-repeat: no-repeat;
-
     background-attachment: fixed;
-}}
-
-/* ================================================= */
-/* FLECHE SIDEBAR */
-/* ================================================= */
-
-button[kind="header"] {{
-
-    background: rgba(13,71,161,0.75) !important;
-
-    border-radius: 12px !important;
-
-    border: 1px solid rgba(255,255,255,0.25) !important;
-
-    backdrop-filter: blur(8px);
-
-    color: white !important;
-
-    margin-left: 10px !important;
-
-    margin-top: 10px !important;
-
-    width: 46px !important;
-
-    height: 46px !important;
-
-    transition: 0.3s;
-}}
-
-button[kind="header"]:hover {{
-
-    background: rgba(24,119,242,0.95) !important;
-
-    transform: scale(1.05);
-}}
-
-/* ================================================= */
-/* ANIMATIONS */
-/* ================================================= */
-
-@keyframes fadeUp {{
-
-    from {{
-        opacity: 0;
-        transform: translateY(30px);
-    }}
-
-    to {{
-        opacity: 1;
-        transform: translateY(0px);
-    }}
-}}
-
-@keyframes pulse {{
-
-    0% {{
-        transform: scale(1);
-    }}
-
-    50% {{
-        transform: scale(1.02);
-    }}
-
-    100% {{
-        transform: scale(1);
-    }}
-}}
-
-@keyframes glowBlue {{
-
-    0% {{
-        box-shadow:
-        0px 0px 12px rgba(24,119,242,0.4),
-        0px 0px 6px rgba(255,215,0,0.3);
-    }}
-
-    50% {{
-        box-shadow:
-        0px 0px 24px rgba(24,119,242,0.7),
-        0px 0px 14px rgba(255,215,0,0.7);
-    }}
-
-    100% {{
-        box-shadow:
-        0px 0px 12px rgba(24,119,242,0.4),
-        0px 0px 6px rgba(255,215,0,0.3);
-    }}
-}}
-
-@keyframes goldShine {{
-
-    0% {{
-        left: -40%;
-    }}
-
-    100% {{
-        left: 120%;
-    }}
 }}
 
 /* ================================================= */
@@ -236,242 +108,19 @@ button[kind="header"]:hover {{
 /* ================================================= */
 
 .main-title {{
-
-    text-align: center;
-
-    font-size: 76px;
-
-    font-weight: 900;
-
-    color: #0d47a1;
-
-    margin-top: 10px;
-
-    animation: pulse 4s infinite;
-
-    text-shadow:
-    0px 3px 10px rgba(255,255,255,0.9);
+    text-align:center;
+    font-size:60px;
+    font-weight:900;
+    color:white;
+    text-shadow:0px 0px 20px rgba(0,0,0,0.6);
+    margin-top:10px;
 }}
 
 .sub-title {{
-
-    text-align: center;
-
-    font-size: 26px;
-
-    color: #111;
-
-    font-weight: 700;
-
-    margin-bottom: 40px;
-
-    text-shadow:
-    0px 2px 6px rgba(255,255,255,0.9);
-}}
-
-/* ================================================= */
-/* SECTION MODULES */
-/* ================================================= */
-
-.modules-title {{
-
-    text-align: center;
-
-    font-size: 42px;
-
-    font-weight: bold;
-
-    color: #0d47a1;
-
-    margin-top: 25px;
-
-    margin-bottom: 40px;
-
-    animation: fadeUp 1s ease;
-}}
-
-/* ================================================= */
-/* BOUTONS MODULES */
-/* ================================================= */
-
-div.stButton > button {{
-
-    width: 100%;
-
-    height: 110px;
-
-    border-radius: 26px;
-
-    border: 2px solid rgba(255,215,0,0.85);
-
-    background:
-    linear-gradient(
-        135deg,
-        rgba(24,119,242,0.82),
-        rgba(13,71,161,0.72)
-    );
-
-    backdrop-filter: blur(10px);
-
-    color: white;
-
-    font-size: 20px;
-
-    font-weight: 700;
-
-    letter-spacing: 0.5px;
-
-    box-shadow:
-    0px 10px 25px rgba(0,0,0,0.25),
-    0px 0px 12px rgba(255,215,0,0.35);
-
-    transition: all 0.35s ease;
-
-    margin-bottom: 28px;
-
-    animation:
-    fadeUp 1s ease,
-    glowBlue 5s infinite;
-
-    text-align: center;
-}}
-
-div.stButton > button:hover {{
-
-    transform:
-    translateY(-6px)
-    scale(1.02);
-
-    background:
-    linear-gradient(
-        135deg,
-        rgba(43,132,255,0.92),
-        rgba(24,119,242,0.88)
-    );
-
-    border: 2px solid gold;
-
-    box-shadow:
-    0px 15px 35px rgba(0,0,0,0.35),
-    0px 0px 20px rgba(255,215,0,0.8);
-}}
-
-/* ================================================= */
-/* STATISTIQUES PREMIUM */
-/* ================================================= */
-
-div[data-testid="metric-container"] {{
-
-    background:
-    linear-gradient(
-        135deg,
-        rgba(255,255,255,0.22),
-        rgba(255,255,255,0.10)
-    );
-
-    backdrop-filter: blur(14px);
-
-    border-radius: 24px;
-
-    padding: 22px;
-
-    border:
-    1.5px solid rgba(255,255,255,0.25);
-
-    position: relative;
-
-    overflow: hidden;
-
-    transition: 0.4s ease;
-
-    box-shadow:
-    0px 8px 25px rgba(0,0,0,0.18),
-    0px 0px 12px rgba(255,215,0,0.18),
-    inset 0px 0px 12px rgba(255,255,255,0.08);
-}}
-
-div[data-testid="metric-container"]::before {{
-
-    content: "";
-
-    position: absolute;
-
-    top: -40%;
-
-    left: -20%;
-
-    width: 140%;
-
-    height: 80%;
-
-    background:
-    linear-gradient(
-        120deg,
-        transparent,
-        rgba(255,215,0,0.22),
-        transparent
-    );
-
-    transform: rotate(8deg);
-
-    animation: goldShine 6s linear infinite;
-}}
-
-div[data-testid="metric-container"]::after {{
-
-    content: "";
-
-    position: absolute;
-
-    inset: 0;
-
-    border-radius: 24px;
-
-    padding: 1.5px;
-
-    background:
-    linear-gradient(
-        135deg,
-        rgba(255,215,0,0.9),
-        rgba(255,255,255,0.2),
-        rgba(24,119,242,0.8),
-        rgba(255,215,0,0.9)
-    );
-
-    pointer-events: none;
-}}
-
-div[data-testid="metric-container"] label {{
-
-    color: white !important;
-
-    font-size: 18px !important;
-
-    font-weight: 600 !important;
-}}
-
-div[data-testid="metric-container"] div[data-testid="stMetricValue"] {{
-
-    color: gold !important;
-
-    font-size: 34px !important;
-
-    font-weight: 800 !important;
-
-    text-shadow:
-    0px 0px 12px rgba(255,215,0,0.45);
-}}
-
-div[data-testid="metric-container"]:hover {{
-
-    transform:
-    translateY(-6px)
-    scale(1.02);
-
-    box-shadow:
-    0px 12px 35px rgba(0,0,0,0.28),
-    0px 0px 18px rgba(255,215,0,0.45),
-    0px 0px 20px rgba(24,119,242,0.35);
+    text-align:center;
+    font-size:20px;
+    color:#e0e0e0;
+    margin-bottom:30px;
 }}
 
 /* ================================================= */
@@ -479,210 +128,160 @@ div[data-testid="metric-container"]:hover {{
 /* ================================================= */
 
 section[data-testid="stSidebar"] {{
-
-    background:
-    linear-gradient(
-        180deg,
-        rgba(66,165,245,0.42),
-        rgba(13,71,161,0.28)
-    ) !important;
-
-    backdrop-filter: blur(10px);
-
-    border-right:
-    1px solid rgba(255,255,255,0.20);
+    background: linear-gradient(180deg, rgba(0,0,0,0.7), rgba(20,20,20,0.9));
 }}
 
 section[data-testid="stSidebar"] * {{
-
-    color: white !important;
+    color:white !important;
 }}
 
 /* ================================================= */
-/* BOUTON DECONNEXION */
+/* METRICS (CARDS) */
 /* ================================================= */
 
-section[data-testid="stSidebar"] .stButton > button {{
-
-    background: #d32f2f !important;
-
-    width: 100% !important;
-
-    height: 55px !important;
-
-    border-radius: 14px !important;
-
-    border: none !important;
-
-    font-size: 18px !important;
-
-    font-weight: 700 !important;
-
-    margin-top: 20px !important;
-
-    animation: none !important;
-
-    box-shadow:
-    0px 6px 18px rgba(0,0,0,0.25) !important;
+.metric-card {{
+    background: rgba(255,255,255,0.08);
+    padding:20px;
+    border-radius:20px;
+    text-align:center;
+    backdrop-filter: blur(10px);
+    box-shadow:0px 0px 20px rgba(0,0,0,0.2);
 }}
 
-section[data-testid="stSidebar"] .stButton > button:hover {{
+.metric-title {{
+    color:white;
+    font-size:16px;
+}}
 
-    background: #b71c1c !important;
-
-    transform: scale(1.02);
+.metric-value {{
+    color:gold;
+    font-size:32px;
+    font-weight:800;
 }}
 
 /* ================================================= */
-/* MESSAGE FINAL */
+/* BUTTONS */
 /* ================================================= */
 
-.success-box {{
+div.stButton > button {{
+    background: linear-gradient(90deg, #0072ff, #00c6ff);
+    color:white;
+    border:none;
+    padding:12px;
+    border-radius:12px;
+    font-weight:700;
+    transition:0.3s;
+}}
 
-    margin-top: 45px;
-
-    padding: 22px;
-
-    border-radius: 22px;
-
-    text-align: center;
-
-    font-size: 22px;
-
-    font-weight: bold;
-
-    color: #0d47a1;
-
-    background:
-    linear-gradient(
-        135deg,
-        rgba(255,255,255,0.90),
-        rgba(230,240,255,0.82)
-    );
-
-    box-shadow:
-    0px 8px 25px rgba(0,0,0,0.15);
-
-    backdrop-filter: blur(8px);
-
-    animation: fadeUp 1s ease;
+div.stButton > button:hover {{
+    transform:scale(1.03);
+    box-shadow:0px 0px 15px rgba(0,114,255,0.6);
 }}
 
 </style>
-"""
-
-st.markdown(page_style, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # =====================================================
-# CONNEXION
+# LOGIN
 # =====================================================
 
 try:
-
     authenticator.login()
-
 except Exception as e:
-
     st.error(e)
 
 # =====================================================
-# UTILISATEUR CONNECTÉ
+# PAGE CONNECTÉE
 # =====================================================
 
 if st.session_state["authentication_status"]:
 
-    authenticator.logout(
-        "Déconnexion",
-        "sidebar"
-    )
+    authenticator.logout("Déconnexion", "sidebar")
 
-    st.sidebar.success(
-        f"Bienvenue {st.session_state['name']}"
-    )
+    st.sidebar.success(f"Bienvenue {st.session_state['name']}")
+    st.sidebar.info("KODAV CEP PRO 2026")
 
-    st.sidebar.info(
-        "KODAV CEP PRO 2026"
-    )
+    # =================================================
+    # HEADER
+    # =================================================
 
     st.markdown("""
-
-    <div class="main-title">
-        KODAV CEP PRO
-    </div>
-
-    <div class="sub-title">
-        Plateforme professionnelle de gestion du centre d’examen blanc CEP
-    </div>
-
+    <div class="main-title">🎓 KODAV CEP PRO</div>
+    <div class="sub-title">Plateforme professionnelle de gestion des centres d’examen CEP</div>
     """, unsafe_allow_html=True)
 
-    d1, d2, d3, d4 = st.columns(4)
+    # =================================================
+    # DASHBOARD CARDS
+    # =================================================
 
-    with d1:
-        st.metric("👨🏽‍🎓 Candidats", total_candidats)
+    col1, col2, col3, col4 = st.columns(4)
 
-    with d2:
-        st.metric("📝 Notes saisies", f"{notes_saisies}%")
+    with col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">👨🏽‍🎓 Candidats</div>
+            <div class="metric-value">{total_candidats}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with d3:
-        st.metric("🏆 Admissibles", admissibles)
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">📝 Notes saisies</div>
+            <div class="metric-value">{notes_saisies}%</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with d4:
-        st.metric("📄 Relevés générés", releves)
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">🏆 Admissibles</div>
+            <div class="metric-value">{admissibles}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("""
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-title">📄 Relevés</div>
+            <div class="metric-value">{releves}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    <div class="modules-title">
-        🚀 Modules Disponibles
-    </div>
+    # =================================================
+    # MODULES
+    # =================================================
 
-    """, unsafe_allow_html=True)
+    st.markdown("## 🚀 Modules disponibles")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-
-        if st.button("👨🏽‍🎓\nCandidats", use_container_width=True):
+        if st.button("👨🏽‍🎓 Candidats", use_container_width=True):
             st.switch_page("pages/candidat.py")
 
     with col2:
-
-        if st.button("📝\nNotes", use_container_width=True):
+        if st.button("📝 Notes", use_container_width=True):
             st.switch_page("pages/notes.py")
 
     with col3:
-
-        if st.button("⚡\nSaisie Rapide", use_container_width=True):
+        if st.button("⚡ Saisie Rapide", use_container_width=True):
             st.switch_page("pages/saisie_rapide.py")
 
     col4, col5 = st.columns(2)
 
     with col4:
-
-        if st.button("🏆\nSynthèse CEP", use_container_width=True):
+        if st.button("🏆 Synthèse CEP", use_container_width=True):
             st.switch_page("pages/synthese.py")
 
     with col5:
-
-        if st.button("📄\nRelevés CEP", use_container_width=True):
+        if st.button("📄 Relevés CEP", use_container_width=True):
             st.switch_page("pages/releves.py")
 
-    st.markdown("""
-
-    <div class="success-box">
-        ✅ Plateforme opérationnelle avec succès
-    </div>
-
-    """, unsafe_allow_html=True)
+    st.success("✅ Plateforme opérationnelle avec succès")
 
 elif st.session_state["authentication_status"] is False:
-
-    st.error(
-        "❌ Nom d'utilisateur ou mot de passe incorrect"
-    )
+    st.error("❌ Nom d'utilisateur ou mot de passe incorrect")
 
 elif st.session_state["authentication_status"] is None:
-
-    st.warning(
-        "🔐 Veuillez vous connecter"
-    )
+    st.warning("🔐 Veuillez vous connecter")
