@@ -9,6 +9,7 @@ import os
 # =====================================================
 # CONFIGURATION PAGE
 # =====================================================
+
 st.set_page_config(
     page_title="KODAV CEP PRO",
     page_icon="🎓",
@@ -17,20 +18,16 @@ st.set_page_config(
 )
 
 # =====================================================
-# IMPORT DU STYLE
-# =====================================================
-from utils.styl import load_css
-load_css()   # applique ton CSS premium
-
-# =====================================================
 # CHARGEMENT YAML
 # =====================================================
+
 with open("config.yaml") as file:
     config = yaml.load(file, Loader=SafeLoader)
 
 # =====================================================
 # AUTHENTIFICATION
 # =====================================================
+
 authenticator = stauth.Authenticate(
     config["credentials"],
     config["cookie"]["name"],
@@ -39,8 +36,28 @@ authenticator = stauth.Authenticate(
 )
 
 # =====================================================
+# BACKGROUND IMAGE (SAFE VERSION)
+# =====================================================
+
+def get_base64(bin_file):
+    if not os.path.exists(bin_file):
+        return None
+    with open(bin_file, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+bg = get_base64("assets/background.png")
+
+background_css = ""
+
+if bg:
+    background_css = f"""
+    url("data:image/png;base64,{bg}")
+    """
+
+# =====================================================
 # STATISTIQUES
 # =====================================================
+
 fichier_excel = "data/notes.xlsx"
 
 total_candidats = 0
@@ -58,15 +75,116 @@ try:
             notes_saisies = round(
                 (df["Moyenne"].fillna(0).gt(0).sum() / total_candidats) * 100
             )
+
             admissibles = len(df[df["Moyenne"] >= 10])
 
         releves = total_candidats
-except Exception as e:
-    st.error(f"Erreur lors du chargement des données : {e}")
+except:
+    pass
+
+# =====================================================
+# DESIGN SaaS PREMIUM CSS
+# =====================================================
+
+st.markdown(f"""
+<style>
+
+/* ================================================= */
+/* BACKGROUND */
+/* ================================================= */
+
+.stApp {{
+    background-image:
+    linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)),
+    {background_css};
+
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}}
+
+/* ================================================= */
+/* TITRES */
+/* ================================================= */
+
+.main-title {{
+    text-align:center;
+    font-size:60px;
+    font-weight:900;
+    color:white;
+    text-shadow:0px 0px 20px rgba(0,0,0,0.6);
+    margin-top:10px;
+}}
+
+.sub-title {{
+    text-align:center;
+    font-size:20px;
+    color:#e0e0e0;
+    margin-bottom:30px;
+}}
+
+/* ================================================= */
+/* SIDEBAR */
+/* ================================================= */
+
+section[data-testid="stSidebar"] {{
+    background: linear-gradient(180deg, rgba(0,0,0,0.7), rgba(20,20,20,0.9));
+}}
+
+section[data-testid="stSidebar"] * {{
+    color:white !important;
+}}
+
+/* ================================================= */
+/* METRICS (CARDS) */
+/* ================================================= */
+
+.metric-card {{
+    background: rgba(255,255,255,0.08);
+    padding:20px;
+    border-radius:20px;
+    text-align:center;
+    backdrop-filter: blur(10px);
+    box-shadow:0px 0px 20px rgba(0,0,0,0.2);
+}}
+
+.metric-title {{
+    color:white;
+    font-size:16px;
+}}
+
+.metric-value {{
+    color:gold;
+    font-size:32px;
+    font-weight:800;
+}}
+
+/* ================================================= */
+/* BUTTONS */
+/* ================================================= */
+
+div.stButton > button {{
+    background: linear-gradient(90deg, #0072ff, #00c6ff);
+    color:white;
+    border:none;
+    padding:12px;
+    border-radius:12px;
+    font-weight:700;
+    transition:0.3s;
+}}
+
+div.stButton > button:hover {{
+    transform:scale(1.03);
+    box-shadow:0px 0px 15px rgba(0,114,255,0.6);
+}}
+
+</style>
+""", unsafe_allow_html=True)
 
 # =====================================================
 # LOGIN
 # =====================================================
+
 try:
     authenticator.login()
 except Exception as e:
@@ -75,6 +193,7 @@ except Exception as e:
 # =====================================================
 # PAGE CONNECTÉE
 # =====================================================
+
 if st.session_state["authentication_status"]:
 
     authenticator.logout("Déconnexion", "sidebar")
@@ -85,6 +204,7 @@ if st.session_state["authentication_status"]:
     # =================================================
     # HEADER
     # =================================================
+
     st.markdown("""
     <div class="main-title">🎓 KODAV CEP PRO</div>
     <div class="sub-title">Plateforme professionnelle de gestion des centres d’examen CEP</div>
@@ -93,44 +213,45 @@ if st.session_state["authentication_status"]:
     # =================================================
     # DASHBOARD CARDS
     # =================================================
+
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         st.markdown(f"""
-        <div class="card">
-            <h3>👨🏽‍🎓 Candidats</h3>
-            <p style="color:gold;font-size:28px;font-weight:800;">{total_candidats}</p>
+        <div class="metric-card">
+            <div class="metric-title">👨🏽‍🎓 Candidats</div>
+            <div class="metric-value">{total_candidats}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown(f"""
-        <div class="card">
-            <h3>📝 Notes saisies</h3>
-            <p style="color:gold;font-size:28px;font-weight:800;">{notes_saisies}%</p>
+        <div class="metric-card">
+            <div class="metric-title">📝 Notes saisies</div>
+            <div class="metric-value">{notes_saisies}%</div>
         </div>
         """, unsafe_allow_html=True)
-        st.progress(notes_saisies / 100)
 
     with col3:
         st.markdown(f"""
-        <div class="card">
-            <h3>🏆 Admissibles</h3>
-            <p style="color:gold;font-size:28px;font-weight:800;">{admissibles}</p>
+        <div class="metric-card">
+            <div class="metric-title">🏆 Admissibles</div>
+            <div class="metric-value">{admissibles}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col4:
         st.markdown(f"""
-        <div class="card">
-            <h3>📄 Relevés</h3>
-            <p style="color:gold;font-size:28px;font-weight:800;">{releves}</p>
+        <div class="metric-card">
+            <div class="metric-title">📄 Relevés</div>
+            <div class="metric-value">{releves}</div>
         </div>
         """, unsafe_allow_html=True)
 
     # =================================================
     # MODULES
     # =================================================
+
     st.markdown("## 🚀 Modules disponibles")
 
     col1, col2, col3 = st.columns(3)
