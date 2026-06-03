@@ -124,10 +124,10 @@ st.markdown(
 
 note_actuelle = candidat[matiere]
 
-if str(note_actuelle) == "-":
+if pd.notna(note_actuelle) and note_actuelle == -1:
     st.error("🚫 ABSENT")
 
-elif pd.notna(note_actuelle) and str(note_actuelle).strip() != "":
+elif pd.notna(note_actuelle):
     st.success(f"✅ Note actuelle : {note_actuelle}")
 
 else:
@@ -139,8 +139,10 @@ else:
 
 note = st.text_input(
     "Note",
-    value="" if pd.isna(note_actuelle) else str(note_actuelle),
-    placeholder="Exemple : 15 ou -",
+    value=""
+    if pd.isna(note_actuelle) or note_actuelle == -1
+    else str(note_actuelle),
+    placeholder="Exemple : 15",
     key=f"note_{index}_{matiere}"
 )
 
@@ -185,7 +187,7 @@ with col2:
         use_container_width=True
     ):
 
-        df.loc[index, matiere] = "-"
+        df.loc[index, matiere] = -1
 
         df.to_excel(FICHIER_NOTES, index=False)
 
@@ -228,14 +230,11 @@ with col2:
 
 st.markdown("---")
 
-colonne = df[matiere].astype(str)
-
-absents = (colonne == "-").sum()
+absents = (df[matiere] == -1).sum()
 
 saisis = (
-    (colonne != "")
-    & (colonne != "-")
-    & (colonne != "nan")
+    df[matiere].notna()
+    & (df[matiere] != -1)
 ).sum()
 
 restants = total - absents - saisis
@@ -252,8 +251,12 @@ c3.metric("⏳ Restants", int(restants))
 
 with st.expander("📋 Voir les notes de la matière"):
 
+    df_affichage = df.copy()
+
+    df_affichage[matiere] = df_affichage[matiere].replace(-1, "ABS")
+
     st.dataframe(
-        df[
+        df_affichage[
             [
                 "N° Table",
                 "Nom",
