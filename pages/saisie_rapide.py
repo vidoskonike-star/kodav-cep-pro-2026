@@ -1,59 +1,106 @@
 import streamlit as st
 import pandas as pd
+import os
+
+# =====================================================
+# CONFIGURATION
+# =====================================================
 
 st.set_page_config(
-    page_title="KODAV CEP PRO - Saisie Rapide",
-    page_icon="📝",
+    page_title="Saisie Rapide PRO",
+    page_icon="⚡",
     layout="centered"
 )
 
 # =====================================================
-# CHARGEMENT DES DONNÉES
+# SECURITE
 # =====================================================
 
-if "df_notes" not in st.session_state:
+if "authentication_status" not in st.session_state:
+    st.error("Veuillez vous connecter")
+    st.stop()
 
-    st.session_state.df_notes = pd.DataFrame({
-        "N° Table": [1, 2, 3, 4, 5],
-        "Nom": [
-            "AHOUANVOEBLA David",
-            "KOSSOU Marc",
-            "ADJOVI Marie",
-            "HOUNKPATIN Jean",
-            "SOSSOU Paul"
-        ],
-        "Note": ["", "", "", "", ""]
-    })
-
-df = st.session_state.df_notes
+if st.session_state["authentication_status"] is not True:
+    st.error("Accès refusé")
+    st.stop()
 
 # =====================================================
-# INDEX CANDIDAT COURANT
+# FICHIERS
+# =====================================================
+
+FICHIER_NOTES = "data/notes.xlsx"
+
+if not os.path.exists(FICHIER_NOTES):
+    st.error("Fichier notes introuvable")
+    st.stop()
+
+# =====================================================
+# CHARGEMENT
+# =====================================================
+
+df = pd.read_excel(FICHIER_NOTES)
+
+if len(df) == 0:
+    st.warning("Aucun candidat trouvé.")
+    st.stop()
+
+df = df.sort_values("N° Table").reset_index(drop=True)
+
+# =====================================================
+# INDEX COURANT
 # =====================================================
 
 if "current_index" not in st.session_state:
     st.session_state.current_index = 0
 
 index = st.session_state.current_index
+
+if index >= len(df):
+    st.session_state.current_index = 0
+    index = 0
+
 total = len(df)
+
+# =====================================================
+# TITRE
+# =====================================================
+
+st.title("⚡ Saisie Rapide PRO")
+
+# =====================================================
+# CHOIX MATIERE
+# =====================================================
+
+matiere = st.selectbox(
+    "📚 Matière",
+    [
+        "Lecture",
+        "Exp écrite",
+        "Dictée",
+        "Math",
+        "EST",
+        "ES",
+        "EA/Dessin/Couture",
+        "EA/Chant-Poésie",
+        "EPS"
+    ]
+)
 
 # =====================================================
 # PROGRESSION
 # =====================================================
-
-st.title("⚡ Saisie Rapide PRO")
 
 st.progress((index + 1) / total)
 
 st.caption(f"Candidat {index + 1} sur {total}")
 
 # =====================================================
-# CANDIDAT ACTUEL
+# CANDIDAT
 # =====================================================
 
 candidat = df.iloc[index]
 
-st.markdown("---")
+nom_complet = f"{candidat['Nom']} {candidat['Prénoms']}"
 
 st.markdown(
     f"""
@@ -62,30 +109,29 @@ st.markdown(
         border-radius:15px;
         background:#f5f5f5;
         text-align:center;
+        margin-bottom:15px;
     ">
         <h2>N° TABLE : {candidat['N° Table']}</h2>
-        <h3>{candidat['Nom']}</h3>
+        <h3>{nom_complet}</h3>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-st.markdown("")
-
 # =====================================================
 # STATUT
 # =====================================================
 
-note_actuelle = candidat["Note"]
+note_actuelle = candidat[matiere]
 
-if note_actuelle == "-":
+if str(note_actuelle) == "-":
     st.error("🚫 ABSENT")
 
-elif str(note_actuelle).strip() != "":
-    st.success(f"✅ Note enregistrée : {note_actuelle}")
+elif pd.notna(note_actuelle) and str(note_actuelle).strip() != "":
+    st.success(f"✅ Note actuelle : {note_actuelle}")
 
 else:
-    st.warning("⏳ Note non saisie")
+    st.warning("⏳ Non saisi")
 
 # =====================================================
 # SAISIE
@@ -94,12 +140,12 @@ else:
 note = st.text_input(
     "Note",
     value="" if pd.isna(note_actuelle) else str(note_actuelle),
-    placeholder="Ex : 15 ou -",
-    key=f"saisie_{index}"
+    placeholder="Exemple : 15 ou -",
+    key=f"note_{index}_{matiere}"
 )
 
 # =====================================================
-# BOUTONS ACTION
+# ACTIONS
 # =====================================================
 
 col1, col2 = st.columns(2)
@@ -110,9 +156,27 @@ with col1:
         "💾 Enregistrer",
         use_container_width=True
     ):
-        df.loc[index, "Note"] = note.strip()
 
-        st.success("Note enregistrée")
+        try:
+
+            valeur = float(note)
+
+            if valeur < 0 or valeur > 20:
+                st.error("La note doit être comprise entre 0 et 20")
+
+            else:
+
+                df.loc[index, matiere] = valeur
+
+                df.to_excel(FICHIER_NOTES, index=False)
+
+                if index < total - 1:
+                    st.session_state.current_index += 1
+
+                st.rerun()
+
+        except:
+            st.error("Entrez une note valide")
 
 with col2:
 
@@ -120,7 +184,14 @@ with col2:
         "🚫 ABSENT",
         use_container_width=True
     ):
-        df.loc[index, "Note"] = "-"
+
+        df.loc[index, matiere] = "-"
+
+        df.to_excel(FICHIER_NOTES, index=False)
+
+        if index < total - 1:
+            st.session_state.current_index += 1
+
         st.rerun()
 
 # =====================================================
@@ -135,8 +206,8 @@ with col1:
 
     if st.button(
         "⬅ Précédent",
-        use_container_width=True,
-        disabled=index == 0
+        disabled=index == 0,
+        use_container_width=True
     ):
         st.session_state.current_index -= 1
         st.rerun()
@@ -145,8 +216,8 @@ with col2:
 
     if st.button(
         "Suivant ➡",
-        use_container_width=True,
-        disabled=index == total - 1
+        disabled=index == total - 1,
+        use_container_width=True
     ):
         st.session_state.current_index += 1
         st.rerun()
@@ -157,50 +228,46 @@ with col2:
 
 st.markdown("---")
 
-absents = (df["Note"] == "-").sum()
+colonne = df[matiere].astype(str)
+
+absents = (colonne == "-").sum()
 
 saisis = (
-    (df["Note"] != "")
-    & (df["Note"] != "-")
+    (colonne != "")
+    & (colonne != "-")
+    & (colonne != "nan")
 ).sum()
 
-non_saisis = total - absents - saisis
+restants = total - absents - saisis
 
 c1, c2, c3 = st.columns(3)
 
 c1.metric("✅ Saisis", int(saisis))
 c2.metric("🚫 Absents", int(absents))
-c3.metric("⏳ Restants", int(non_saisis))
+c3.metric("⏳ Restants", int(restants))
 
 # =====================================================
-# APERÇU GLOBAL
+# APERCU
 # =====================================================
 
-with st.expander("📋 Voir toutes les notes"):
+with st.expander("📋 Voir les notes de la matière"):
 
     st.dataframe(
-        df,
+        df[
+            [
+                "N° Table",
+                "Nom",
+                "Prénoms",
+                matiere
+            ]
+        ],
         use_container_width=True,
         hide_index=True
     )
 
 # =====================================================
-# EXPORT
+# RETOUR
 # =====================================================
 
-if st.button("📥 Exporter les notes"):
-
-    df_export = df.copy()
-
-    df_export["Statut"] = df_export["Note"].apply(
-        lambda x: "Absent" if x == "-" else "Présent"
-    )
-
-    fichier = "notes_saisies.xlsx"
-
-    df_export.to_excel(
-        fichier,
-        index=False
-    )
-
-    st.success("Export terminé")
+if st.button("🏠 Accueil"):
+    st.switch_page("app.py")
