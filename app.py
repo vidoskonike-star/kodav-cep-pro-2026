@@ -294,6 +294,10 @@ if st.session_state["authentication_status"]:
         if st.button("📄 Relevés CEP", use_container_width=True):
             st.switch_page("pages/releves.py")
 
+    if st.session_state.get("role") in {"admin", "circonscription"}:
+        if st.button("📊 Synthèse Circonscription", use_container_width=True):
+            st.switch_page("pages/admin_circ.py")
+
     st.success("✅ Plateforme opérationnelle avec succès")
 
 elif st.session_state["authentication_status"] is False:
