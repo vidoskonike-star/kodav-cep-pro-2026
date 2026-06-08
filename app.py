@@ -55,34 +55,6 @@ if bg:
     """
 
 # =====================================================
-# STATISTIQUES
-# =====================================================
-
-fichier_excel = "data/notes.xlsx"
-
-total_candidats = 0
-notes_saisies = 0
-admissibles = 0
-releves = 0
-
-try:
-    if os.path.exists(fichier_excel):
-        df = pd.read_excel(fichier_excel)
-
-        total_candidats = len(df)
-
-        if "Moyenne" in df.columns and total_candidats > 0:
-            notes_saisies = round(
-                (df["Moyenne"].fillna(0).gt(0).sum() / total_candidats) * 100
-            )
-
-            admissibles = len(df[df["Moyenne"] >= 10])
-
-        releves = total_candidats
-except:
-    pass
-
-# =====================================================
 # DESIGN SaaS PREMIUM CSS
 # =====================================================
 
@@ -196,9 +168,53 @@ except Exception as e:
 
 if st.session_state["authentication_status"]:
 
+    username = st.session_state.get("username")
+    user_config = config["credentials"]["usernames"].get(username, {})
+    st.session_state["role"] = user_config.get("role", "teacher")
+    centre_config = user_config.get("centre", "CENTRE_PAR_DEFAUT")
+
+    if centre_config == "ALL":
+        centres_disponibles = sorted(
+            [
+                nom
+                for nom in os.listdir("data")
+                if os.path.isdir(os.path.join("data", nom))
+            ]
+        )
+        if not centres_disponibles:
+            centres_disponibles = ["CENTRE_PAR_DEFAUT"]
+
+        centre = st.sidebar.selectbox("Centre actif", centres_disponibles)
+    else:
+        centre = centre_config
+
+    st.session_state["centre"] = centre
+    fichier_excel = os.path.join("data", centre, "notes.xlsx")
+
+    total_candidats = 0
+    notes_saisies = 0
+    admissibles = 0
+    releves = 0
+
+    try:
+        if os.path.exists(fichier_excel):
+            df = pd.read_excel(fichier_excel)
+            total_candidats = len(df)
+
+            if "Moyenne" in df.columns and total_candidats > 0:
+                notes_saisies = round(
+                    (df["Moyenne"].fillna(0).gt(0).sum() / total_candidats) * 100
+                )
+                admissibles = len(df[df["Moyenne"] >= 10])
+
+            releves = total_candidats
+    except Exception as e:
+        st.warning(f"Impossible de charger les statistiques du centre {centre}: {e}")
+
     authenticator.logout("Déconnexion", "sidebar")
 
     st.sidebar.success(f"Bienvenue {st.session_state['name']}")
+    st.sidebar.info(f"Centre : {centre}")
     st.sidebar.info("KODAV CEP PRO 2026")
 
     # =================================================

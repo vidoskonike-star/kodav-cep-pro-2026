@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+.streamlit/secrets.toml
+.env
+.venv/
+venv/
+
+releve_*.pdf
+statistiques_*.pdf
+
+generate_passwords.py

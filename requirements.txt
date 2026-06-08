@@ -3,6 +3,7 @@ pandas
 openpyxl
 plotly
 reportlab
+fpdf
 PyPDF2
 PyYAML
 streamlit-authenticator

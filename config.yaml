@@ -1,9 +1,63 @@
 credentials:
   usernames:
+    # Ton compte admin initial
     admin:
       email: admin@gmail.com
-      name: Administrateur
+      name: Administrateur Principal
       password: "$2b$12$E2IAY7C9nUwHPzsJfOQW/uJvsFKNTJtpJDn.wS5doednq2y3SB6Du"
+      role: "admin"
+      centre: "ALL"   # accès à tous les centres
+
+    # Compte admin circonscription
+    admin_circ:
+      email: circ@gmail.com
+      name: Admin Circonscription
+      password: "$2b$12$3Dds7uoVhr199Q4ah/yJ0esnNg8KFZEufWeHfy9HY1AnjnH3exWsW"
+      role: "circonscription"
+      centre: "ALL"
+
+    # Nouveaux enseignants par centre
+    prof_doko:
+      email: doko@gmail.com
+      name: Enseignant Centre de Doko
+      password: "$2b$12$cMUmqg5AismmrA8spe038eCTJOgOydzdsTATiLM71MJTPJ9mhuc.O"
+      role: "teacher"
+      centre: "CENTRE_DE_DOKO"
+
+    prof_houedogli:
+      email: houedogli@gmail.com
+      name: Enseignant Centre de Houedogli
+      password: "$2b$12$G6AwR3qlQUGYhTz.SURHCe7Yqa5.nvSum7LDyjVKpKiOOOkmAA5T6"
+      role: "teacher"
+      centre: "CENTRE_DE_HOUEDOGLI"
+
+    prof_missinko:
+      email: missinko@gmail.com
+      name: Enseignant Centre de Missinko
+      password: "$2b$12$LR4CiudKpujXZdOSl.Tgbe/kC0AJiApgRz1cXJII5v9SWC.QIsJ7q"
+      role: "teacher"
+      centre: "CENTRE_DE_MISSINKO"
+
+    prof_tannou:
+      email: tannou@gmail.com
+      name: Enseignant Centre de Tannou-Gola
+      password: "$2b$12$R6.nh9gk9BEQRYAItNaJg.8BOifL5IYjf8j9Cqt3GtF7ruD4OlaZO"
+      role: "teacher"
+      centre: "CENTRE_DE_TANNOU_GOLA"
+
+    prof_tohounhoue:
+      email: tohounhoue@gmail.com
+      name: Enseignant Centre de Tohounhoue
+      password: "$2b$12$fWVszPPLrIAmfYvgHup0B.vePl/vxbJGKWg5F5OndAuHeqWj51N1S"
+      role: "teacher"
+      centre: "CENTRE_DE_TOHOUNHOUE"
+
+    prof_toviklin:
+      email: toviklin@gmail.com
+      name: Enseignant Centre de Toviklin
+      password: "$2b$12$lebU5Mjjrnq2lR5irSLT.epUEEOPmqTDrDQjSsym.1pNeDbBzSCS2"
+      role: "teacher"
+      centre: "CENTRE_DE_TOVIKLIN"
 
 cookie:
   expiry_days: 30
@@ -13,3 +67,10 @@ cookie:
 preauthorized:
   emails:
     - admin@gmail.com
+    - circ@gmail.com
+    - doko@gmail.com
+    - houedogli@gmail.com
+    - missinko@gmail.com
+    - tannou@gmail.com
+    - tohounhoue@gmail.com
+    - toviklin@gmail.com
