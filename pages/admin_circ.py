@@ -3,6 +3,10 @@ from io import BytesIO
 
 import pandas as pd
 import streamlit as st
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 st.set_page_config(
@@ -220,6 +224,96 @@ def creer_export_excel(feuilles):
     return sortie
 
 
+def texte_pdf(valeur):
+    if pd.isna(valeur):
+        return ""
+    texte = str(valeur)
+    return texte.encode("latin-1", "replace").decode("latin-1")
+
+
+def tableau_pdf(titre, tableau, styles, largeur_disponible):
+    elements = [
+        Paragraph(texte_pdf(titre), styles["Heading2"]),
+        Spacer(1, 8),
+    ]
+
+    if tableau.empty:
+        elements.append(Paragraph("Aucune donnee disponible.", styles["BodyText"]))
+        elements.append(Spacer(1, 14))
+        return elements
+
+    donnees = [list(tableau.columns)]
+    donnees.extend(tableau.astype(object).values.tolist())
+
+    nb_colonnes = max(len(donnees[0]), 1)
+    largeur_colonne = largeur_disponible / nb_colonnes
+    style_cellule = styles["BodyText"]
+    style_cellule.fontSize = 7
+    style_cellule.leading = 8
+
+    donnees_pdf = [
+        [Paragraph(texte_pdf(cellule), style_cellule) for cellule in ligne]
+        for ligne in donnees
+    ]
+
+    table = Table(donnees_pdf, colWidths=[largeur_colonne] * nb_colonnes, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#174A3C")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F2F5F3")]),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
+
+    elements.append(table)
+    elements.append(Spacer(1, 18))
+    return elements
+
+
+def creer_export_pdf(feuilles):
+    sortie = BytesIO()
+    doc = SimpleDocTemplate(
+        sortie,
+        pagesize=landscape(A4),
+        rightMargin=24,
+        leftMargin=24,
+        topMargin=24,
+        bottomMargin=24,
+        title="Synthese circonscription CEP",
+    )
+
+    styles = getSampleStyleSheet()
+    largeur_disponible = doc.width
+    elements = [
+        Paragraph("Synthese de la circonscription - CEP 2026", styles["Title"]),
+        Spacer(1, 8),
+        Paragraph(
+            "Rapport compile automatiquement a partir des fichiers notes.xlsx de tous les centres.",
+            styles["BodyText"],
+        ),
+        Spacer(1, 16),
+    ]
+
+    for index, (titre, tableau) in enumerate(feuilles.items()):
+        if index > 0:
+            elements.append(PageBreak())
+        elements.extend(tableau_pdf(titre, tableau, styles, largeur_disponible))
+
+    doc.build(elements)
+    sortie.seek(0)
+    return sortie
+
+
 st.title("📊 Synthese de la circonscription")
 st.caption("Compilation automatique des fichiers notes.xlsx de tous les centres.")
 
@@ -296,21 +390,30 @@ resume = pd.DataFrame(
     ]
 )
 
-export = creer_export_excel(
-    {
-        "Resume global": resume,
-        "Par centre": tableau_centres,
-        "Par sexe": tableau_sexe,
-        "Par matiere": tableau_matiere,
-        "Top candidats": top_10[colonnes_top],
-    }
-)
+feuilles_export = {
+    "Resume global": resume,
+    "Par centre": tableau_centres,
+    "Par sexe": tableau_sexe,
+    "Par matiere": tableau_matiere,
+    "Top candidats": top_10[colonnes_top],
+}
+
+export_excel = creer_export_excel(feuilles_export)
+export_pdf = creer_export_pdf(feuilles_export)
 
 st.download_button(
     "Telecharger la synthese Excel",
-    data=export,
+    data=export_excel,
     file_name="synthese_circonscription.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    use_container_width=True,
+)
+
+st.download_button(
+    "Telecharger la synthese PDF",
+    data=export_pdf,
+    file_name="synthese_circonscription.pdf",
+    mime="application/pdf",
     use_container_width=True,
 )
 
