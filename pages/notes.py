@@ -133,11 +133,19 @@ if submit:
             df_notes.loc[ligne, "OBS"] = "ABSENT"
             df_notes.loc[ligne, "Rang"] = ""
         else:
+            # Total classique
             df_notes["Total"] = df_notes[colonnes_notes].sum(axis=1)
             df_notes["Moyenne"] = (df_notes["Total"]/9).round(2)
-            df_notes["Moy 6/9"] = (df_notes["Total"]/6).round(2)
-            df_notes["OBS"] = df_notes["Moyenne"].apply(lambda x: "Admis" if x>=10 else "Ajourné")
+
+            # Nouveau calcul : nombre de matières >= 10
+            df_notes["Moy 6/9"] = (df_notes[colonnes_notes] >= 10).sum(axis=1)
+
+            # Admission basée sur Moy 6/9
+            df_notes["OBS"] = df_notes["Moy 6/9"].apply(lambda x: "Admis" if x >= 6 else "Ajourné")
+
+            # Rang basé sur le total
             df_notes["Rang"] = df_notes["Total"].rank(ascending=False).astype(int)
+
     df_notes.to_excel(FICHIER_NOTES, index=False)
     st.success("✅ Notes enregistrées")
     st.rerun()
