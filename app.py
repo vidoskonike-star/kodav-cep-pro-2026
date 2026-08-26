@@ -1,10 +1,23 @@
 import streamlit as st
-import streamlit_authenticator as stauth
+from utils.user_manager import verify_password, get_user
 import yaml
 from yaml.loader import SafeLoader
+from datetime import datetime
 import base64
 import pandas as pd
 import os
+
+# Initialiser des clés de session attendues pour éviter KeyError
+if "authentication_status" not in st.session_state:
+    st.session_state["authentication_status"] = None
+if "username" not in st.session_state:
+    st.session_state["username"] = None
+if "name" not in st.session_state:
+    st.session_state["name"] = None
+if "role" not in st.session_state:
+    st.session_state["role"] = None
+if "centre" not in st.session_state:
+    st.session_state["centre"] = None
 
 # =====================================================
 # CONFIGURATION PAGE
@@ -27,13 +40,7 @@ with open("config.yaml") as file:
 # =====================================================
 # AUTHENTIFICATION
 # =====================================================
-
-authenticator = stauth.Authenticate(
-    config["credentials"],
-    config["cookie"]["name"],
-    config["cookie"]["key"],
-    config["cookie"]["expiry_days"]
-)
+# Utilise utils.user_manager pour l'authentification (formulaire plus bas)
 
 # =====================================================
 # BACKGROUND IMAGE (SAFE VERSION)
@@ -154,13 +161,38 @@ div.stButton > button:hover {{
 """, unsafe_allow_html=True)
 
 # =====================================================
-# LOGIN
+# AUTHENTIFICATION (simple, basée sur utils/user_manager)
 # =====================================================
 
-try:
-    authenticator.login()
-except Exception as e:
-    st.error(e)
+def do_login():
+    st.markdown("### Connexion")
+    with st.form("login_form"):
+        username = st.text_input("Identifiant")
+        password = st.text_input("Mot de passe", type="password")
+        submit = st.form_submit_button("Se connecter")
+
+    if submit:
+        user = get_user(username)
+        if not user:
+            st.error("Utilisateur introuvable")
+            return False
+        hashed = user.get("password", "")
+        if verify_password(password, hashed):
+            st.session_state["authentication_status"] = True
+            st.session_state["username"] = username
+            st.session_state["name"] = user.get("name")
+            st.session_state["role"] = user.get("role", "teacher")
+            st.session_state["centre"] = user.get("centre", "CENTRE_PAR_DEFAUT")
+            st.success("Connecté")
+            st.experimental_rerun()
+        else:
+            st.session_state["authentication_status"] = False
+            st.error("Nom d'utilisateur ou mot de passe incorrect")
+            return False
+
+
+if "authentication_status" not in st.session_state or not st.session_state.get("authentication_status"):
+    do_login()
 
 # =====================================================
 # PAGE CONNECTÉE
@@ -211,8 +243,6 @@ if st.session_state["authentication_status"]:
     except Exception as e:
         st.warning(f"Impossible de charger les statistiques du centre {centre}: {e}")
 
-    authenticator.logout("Déconnexion", "sidebar")
-
     st.sidebar.success(f"Bienvenue {st.session_state['name']}")
     st.sidebar.info(f"Centre : {centre}")
     st.sidebar.info("KODAV CEP PRO 2026")
@@ -221,10 +251,26 @@ if st.session_state["authentication_status"]:
     # HEADER
     # =================================================
 
-    st.markdown("""
+    # Calcul automatique de l'année académique (ex: 2026/2027)
+    def get_academic_year(now: datetime = None) -> str:
+        if now is None:
+            now = datetime.now()
+        year = now.year
+        month = now.month
+        # année académique commence en septembre
+        if month >= 9:
+            return f"{year}/{year + 1}"
+        else:
+            return f"{year - 1}/{year}"
+
+    ACADEMIC_YEAR = get_academic_year()
+
+    st.markdown(f"""
     <div class="main-title">🎓 KODAV CEP PRO</div>
-    <div class="sub-title">Plateforme professionnelle de gestion des centres d’examen CEP</div>
+    <div class="sub-title">Plateforme professionnelle de gestion des centres d’examen CEP — Année académique {ACADEMIC_YEAR}</div>
     """, unsafe_allow_html=True)
+
+
 
     # =================================================
     # DASHBOARD CARDS

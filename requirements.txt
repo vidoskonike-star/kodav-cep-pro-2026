@@ -10,3 +10,4 @@ streamlit-authenticator
 Pillow
 xlsxwriter
 numpy
+passlib[bcrypt]
